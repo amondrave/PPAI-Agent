@@ -1,7 +1,7 @@
 # Product Vision Board — PPAI
-Fecha: 2026-03-03
-Versión: 1.1
-Estado: Draft
+Fecha: 2026-03-04
+Versión: 2.0
+Estado: Estrategia activa
 Author: Angel Yesid Mondragon
 
 ---
@@ -10,150 +10,295 @@ Author: Angel Yesid Mondragon
 
 > **¿Por qué existe PPAI y a qué aspira?**
 
-PPAI existe porque el problema de la procrastinación no es de organización — es de ejecución.
-Las herramientas actuales te ayudan a registrar lo que ya decidiste hacer. PPAI trabaja sobre por qué no lo estás haciendo.
+PPAI existe porque el problema de la ejecución no es de organización ni de output — es de **proceso continuo**. Las herramientas actuales te dan un plan. PPAI conduce el ciclo completo: captura la intención, empuja en el momento correcto, registra el resultado real y aprende del patrón.
 
-**Aspiración:** Ser el sistema que convierte intenciones dispersas en acciones concretas, usando el canal que el usuario prefiera — sin apps nuevas, sin configuración, sin culpa.
+**Aspiración:** Ser el workflow loop de productividad personal más confiable para trabajadores autónomos — el sistema que convierte intenciones dispersas en ciclos de ejecución medibles, sin apps nuevas, sin dashboards, sin culpa.
+
+**Por qué sobrevive a GPT-6:** PPAI no es un generador de outputs — es un conductor de estados. Cualquier LLM puede escribir un plan. Ningún LLM puede, por sí solo, mantener estado de lo que pospusiste tres veces, saber tu patrón de bloqueo del martes a las 3pm y ajustar el nudge del miércoles en consecuencia. Eso es proceso + datos propietarios.
 
 ---
 
 ## 2) Target Group
 
 ### Primario — Freelancer / Developer solopreneur
-- **Quién es:** Desarrollador, diseñador o consultor independiente. 25–38 años.
-- **Contexto:** Trabaja desde casa. Sin estructura laboral externa que le diga qué hacer ni cuándo. Mezcla proyectos de clientes con aprendizaje y proyectos personales. Su tiempo es su único activo — la procrastinación tiene costo directo en ingresos.
-- **Herramientas actuales:** Según perfil: CLI o Telegram para comunicación diaria + Notion o Todoist (abandonado en < 30 días) + notas de voz o mensajes a sí mismo (captura instintiva).
-- **Dolor principal:** No es que no sepa qué hacer — sabe exactamente qué debería hacer y aun así no arranca. La fricción de ejecución es diaria, repetitiva y genera culpa acumulada.
-- **Trigger de mayor dolor:** Lunes por la mañana o después de un día improductivo. El usuario abre Notion, ve la lista, se paraliza, y termina haciendo algo que no estaba en ninguna lista.
-- **Canal preferido:** Usuario técnico → CLI; usuario conversacional → Telegram; integración con sistema propio → API Web.
 
-### Secundario — Estudiante universitario / autodidacta intensivo
-- **Quién es:** 18–26 años. Estudia una carrera + aprende por cuenta propia. Alta carga cognitiva, bajos ingresos.
-- **Diferencia vs primario:** No paga (o paga muy poco). Es el canal de distribución orgánica — comparte en su grupo y trae usuarios del Segmento A.
-- **Canal preferido:** Telegram principalmente; adopta CLI si tiene perfil técnico.
-- **Por qué podría pagar:** Si hay tier gratuita funcional y la tier de pago desbloquea el reporte nocturno + análisis de fricción.
+- **Quién es:** Desarrollador, diseñador o consultor independiente. 25–38 años. Trabaja desde casa o en espacios cowork.
+- **Contexto:** Sin estructura laboral externa que defina qué hacer ni cuándo. Mezcla proyectos de clientes con aprendizaje personal. Su tiempo es su único activo — la procrastinación tiene costo directo en ingresos.
+- **Dolor principal:** No es que no sepa qué hacer — sabe exactamente qué debería hacer y aun así no arranca. La fricción de ejecución es diaria, repetitiva y genera culpa acumulada.
+- **Canal natural:** Telegram para comunicación + CLI para trabajo técnico. No abre apps de productividad nuevas.
+- **Trigger de mayor dolor:** Lunes por la mañana o después de un día improductivo. Abre Notion, ve la lista, se paraliza.
+
+### Secundario — Estudiante autodidacta intensivo
+
+- **Quién es:** 18–26 años. Alta carga cognitiva, bajo presupuesto.
+- **Rol en el producto:** Canal de distribución orgánica (comparte con su red). Valida el tono del reporte nocturno.
+- **Canal preferido:** Telegram principalmente.
 
 ---
 
 ## 3) Needs — validables en 7 días
 
-> Formato: Need + cómo medirlo + supuesto crítico vinculado
-
-**Need #1 — Claridad de próxima acción inmediata**
-> "No sé por dónde empezar" es el estado más frecuente y más paralizante.
-- El usuario necesita que algo le diga qué es lo siguiente, ahora, en el canal donde ya está trabajando.
-- **Medición (7 días):** % de usuarios que ejecutan ≥ 1 tarea en la primera hora después de recibir el plan.
-- **Supuesto vinculado:** SC1 — el usuario puede mantener el hábito de capturar tareas.
+**Need #1 — Claridad de próxima acción, ahora, en el canal donde ya está**
+- Medición (Semana 1): % de usuarios que ejecutan ≥ 1 tarea en la primera hora post-plan.
+- Supuesto vinculado: C1 — el usuario mantiene el hábito de captura.
 
 **Need #2 — Captura sin fricción ni cambio de contexto**
-> El usuario ya captura en notas de voz, stickies o mensajes a sí mismo. El problema es que esas capturas nunca se convierten en plan.
-- PPAI debe interceptar ese comportamiento instintivo — desde CLI, bot conversacional o API — y convertirlo en acción, no añadir un paso más.
-- **Medición (7 días):** Promedio de capturas/día/usuario activo. Target: ≥ 3/día.
-- **Supuesto vinculado:** SC1, SC3 — el canal reduce fricción y la IA clasifica bien.
+- Medición (Semana 1): Capturas/día/usuario activo. Target: ≥ 3/día.
+- Supuesto vinculado: C1, C3.
 
 **Need #3 — Cierre del día con insight, no con culpa**
-> El usuario que tuvo un día malo no quiere un resumen de sus fracasos. Quiere entender qué pasó y cómo hacerlo diferente mañana.
-- El reporte nocturno debe funcionar como un espejo curioso, no como un juez — independientemente del canal por el que llegue.
-- **Medición (7 días):** ≤ 1 de cada 3 usuarios reporta sentir culpa o vergüenza. ≥ 60% lo califica como útil.
-- **Supuesto vinculado:** SC4 — el reporte genera insight, no culpa.
+- Medición (Semana 1): ≤ 33% reporta culpa / ≥ 60% lo califica como útil.
+- Supuesto vinculado: C4 — el tono del reporte funciona.
 
 **Need #4 — Plan que respeta la energía disponible**
-> No todas las tareas son iguales. El usuario necesita un plan que reconozca cuándo tiene energía para qué tipo de trabajo.
-- **Medición (7 días):** % de usuarios que ejecutan ≥ 2 de las 3 tareas clave del plan diario. Target: > 60%.
-- **Supuesto vinculado:** SC3 — clasificación de energía/tipo funciona correctamente.
+- Medición (Semana 1): % de usuarios que ejecutan ≥ 2 de las 3 tareas clave. Target: > 60%.
+- Supuesto vinculado: C3 — clasificación de energía/tipo funciona.
 
 ---
 
-## 4) Product
+## 4) Product — MVP Telegram (Workflow Loop)
 
-### 4.1 Value Proposition
+### 4.1 El Workflow Loop Central
 
-> **"PPAI convierte mensajes sueltos en un plan ejecutable y un ritual de cierre útil — desde el canal que prefieras, sin instalar nada, sin migrar tareas."**
+```
+┌─────────────────────────────────────────────────────────┐
+│              WORKFLOW LOOP CENTRAL — PPAI               │
+│                                                         │
+│   CAPTURE ──► DECIDE ──► EXECUTE ──► CONFIRM/UPDATE     │
+│      ▲                                    │             │
+│      │                                    ▼             │
+│   NEXT TASK ◄────────────── LEARN ◄── REPORT            │
+└─────────────────────────────────────────────────────────┘
+```
 
-Lo que nos diferencia de cada alternativa:
+Este loop es el producto. No los mensajes individuales, no el plan diario — el **ciclo completo** de captura a confirmación a aprendizaje es lo que genera valor y genera datos.
 
-| Alternativa | Qué resuelve | Qué no resuelve | Gap que PPAI cubre |
-|---|---|---|---|
-| Motion / Reclaim | Reorganiza el calendario si fallas | No trabaja la fricción de ejecución | La capa de comportamiento |
-| Todoist / Notion | Registra lo que decidiste hacer | No actúa si no ejecutas | La conversión de lista a acción |
-| Papel / notas | Cero fricción de captura | No genera plan ni análisis | Automatización del paso "captura → plan" |
-| Mensajes a sí mismo | Captura instintiva natural | Las notas nunca se convierten en acciones | El ritual de cierre y el análisis |
+**Comandos mínimos del MVP:**
 
-### 4.2 Canales (roadmap por fases)
+```
+/done      → Cierra tarea. Registra energía y hora real.
+/snooze    → Posponer + razón opcional. Registra patrón de bloqueo.
+/clarify   → Tarea no accionable. Reabre captura para refinar.
+```
 
-#### Fase 1 (MVP) — Telegram Bot (único canal)
-- **Por qué:** máximo “time-to-value” y mínimo esfuerzo de integración.
-- **Caso de uso:** captura en lenguaje natural + respuesta inmediata + reporte nocturno.
-- **Objetivo:** validar hábito (SC1), clasificación (SC3) y tono del reporte (SC4).
+> Botones inline de Telegram: [✓ Hecho] [⏸ Posponer] [? Aclarar] — equivalentes a los comandos, sin escribir.
 
-#### Fase 2 (Post-MVP) — CLI (siguiente integración)
-- **Por qué:** el segmento primario técnico vive en terminal; reduce aún más el cambio de contexto.
-- **Caso de uso:** captura ultra-rápida (`ppai add "..."`) + consulta de “top 3” del día.
-- **Dependencia:** solo se implementa si el MVP en Telegram supera los targets de retención y utilidad.
+### 4.2 Value Proposition
 
-#### Fase 3 (Futuro) — API Web (integraciones)
-- **Por qué:** habilita automatizaciones e integraciones con flujos externos.
-- **Caso de uso:** webhooks, scripts, conexiones con herramientas existentes.
+> **"PPAI conduce el ciclo completo entre intención y ejecución — desde Telegram, sin instalar nada, sin migrar tareas, sin dashboards."**
 
-### 4.3 MVP — 2 Flujos Core
+| Alternativa | Qué resuelve | Gap que PPAI cubre |
+|---|---|---|
+| Motion / Reclaim | Reorganiza el calendario si fallas | No trabaja la fricción de ejecución ni captura estado de bloqueo |
+| Todoist / Notion | Registra lo que decidiste hacer | No actúa si no ejecutas; no aprende del patrón |
+| ChatGPT / Claude | Genera un plan de productividad | No mantiene estado, no conduce el ciclo, no acumula contexto |
+| Papel / notas | Cero fricción de captura | Las notas nunca se convierten en ciclo de ejecución |
 
-#### Flujo Core #1 — Captura → Plan del día
-- **Disparador:** El usuario envía una o varias tareas en lenguaje libre — por CLI, bot o API — en cualquier momento del día.
-- **Entrada:** Texto coloquial. Sin formato. Sin categorías.
-  ```
-  "Terminar módulo 3 del curso"
-  "Llamar al banco"
-  "Idea: app de notas con voz"
-  ```
-- **Transformación:** LLM clasifica tipo / energía requerida / duración estimada. Decide qué es para hoy y qué va al backlog. Prioriza las 3 tareas clave del día.
-- **Salida:** Respuesta en el canal usado con el plan del día: 3 tareas clave ordenadas por energía + bloque horario sugerido + N tareas secundarias opcionales.
-- **Momento wow:** El usuario recibe su plan en < 30 segundos. Siente que alguien tomó el caos de su cabeza y lo organizó.
-- **Métrica de éxito:** ≥ 60% de usuarios ejecutan ≥ 2 de las 3 tareas clave ese mismo día.
+### 4.3 Flujos Core del MVP
 
-#### Flujo Core #2 — Ritual de cierre (Reporte nocturno)
-- **Disparador:** Trigger automático a las 21:00 hora local del usuario.
-- **Entrada:** Historial del día — tareas capturadas, confirmaciones de completado, ausencias de confirmación.
-- **Transformación:** LLM genera resumen de qué se hizo, qué se pospuso, y una hipótesis curiosa (no acusatoria) de por qué. Incluye 1 recomendación suave para mañana.
-- **Salida:** Mensaje breve en el canal preferido del usuario. Tono: compañero que hace el cierre contigo, no jefe que evalúa tu desempeño.
-- **Momento wow:** El usuario lee la hipótesis de por qué pospuso algo y piensa "exactamente eso era". El sistema lo conoce.
-- **Métrica de éxito:** ≥ 70% de apertura / lectura en D1–D7. ≥ 60% lo califica como útil en feedback de Semana 4.
+**Flujo 1 — Captura → Plan del día**
+
+1. Usuario envía texto libre en Telegram en cualquier momento.
+2. LLM clasifica: tipo / energía requerida / duración estimada / urgencia.
+3. Sistema responde con plan: 3 tareas clave ordenadas por energía + N backlog.
+4. En el momento sugerido, sistema envía nudge con botones inline.
+
+**Momento wow:** El usuario recibe su plan en < 30 segundos. Siente que alguien tomó el caos y lo organizó.
+
+**Flujo 2 — Ritual de cierre (Reporte nocturno)**
+
+1. Trigger automático a las 21:00 hora local.
+2. Sistema compila: tareas confirmadas, posposiciones, razones registradas.
+3. LLM genera: síntesis de qué se hizo + hipótesis curiosa de por qué se pospuso lo que se pospuso + 1 recomendación suave.
+4. Mensaje breve en Telegram. Tono: compañero que cierra contigo, no jefe que evalúa.
+
+**Momento wow:** El usuario lee la hipótesis de por qué pospuso algo y piensa "exactamente eso era". El sistema lo conoce.
 
 ### 4.4 Anti-features — lo que PPAI no hace en el MVP
 
 - No integra con Google Calendar ni calendarios externos.
-- No "regaña" al usuario ni usa lenguaje de fracaso.
-- No requiere migrar tareas desde otras apps.
+- No genera dashboards ni reportes gráficos.
+- No usa lenguaje acusatorio ni de evaluación de desempeño.
 - No tiene interfaz web visual ni app móvil.
-- No genera reportes gráficos ni dashboards.
-- No promete resolver TDAH, ansiedad o salud mental.
-- No procesa datos sensibles (finanzas detalladas, nombres de terceros, información médica).
-- En el MVP solo hay 1 canal: Telegram (CLI es post-MVP).
+- No promete resolver TDAH, ansiedad ni salud mental.
+- No procesa datos sensibles (finanzas, médicos, terceros identificables).
+- No opera en CLI en MVP (es Fase 2).
+- No implementa rutinas complejas (pomodoro, bloques temáticos, etc.).
 
 ---
 
-## 5) Business Goals — medibles en 7–14 días
+## 5) Moat Primario — Data Behavioral Moat
 
-> Estos son los números mínimos para decidir si se avanza, se pivota o se detiene. Sin números, no hay decisión.
+**Elección: Data Moat.** Es el único moat que se acumula con el uso y que ningún competidor puede comprar.
 
-| Goal | Métrica | Target MVP | Kill criteria si no se alcanza |
-|---|---|---|---|
-| **Retención de hábito** (SC1) | Usuarios que siguen enviando tareas al Día 5 del MVP de papel | ≥ 2 de 3 usuarios | Si < 2/3 → no construir el bot aún; revisar el flujo |
-| **Calidad de clasificación IA** (SC3) | % de tareas clasificadas correctamente sin corrección | ≥ 75% en 30 entradas reales | Si < 70% → ajustar prompt antes de automatizar |
-| **Impacto del reporte nocturno** (SC4) | % que reporta culpa / % que lo encuentra útil | ≤ 33% culpa / ≥ 60% útil | Si > 33% culpa → rediseñar tono del reporte |
-| **Señal de demanda / WTP** (SC2) | Usuarios que declaran WTP > $8/mes tras ver el flujo en vivo | ≥ 3 de 5 entrevistados | Si < 3/5 → pivotar modelo de precio o segmento |
-| **Costo operativo** (SC5) | Costo LLM real por usuario activo/mes con uso real medido | ≤ $1/usuario/mes | Si > $2 → cambiar modelo de LLM o reducir features |
+La distribución por Telegram es ventaja táctica de tiempo-al-valor. Es lo que permite validar rápido. No es el moat.
+
+### ¿Qué datos genera el loop, semana a semana?
+
+| Semana | Dato acumulado | Por qué importa |
+|--------|---------------|-----------------|
+| 1 | Primeras confirmaciones y posposiciones por tipo de tarea | Baseline de patrón de ejecución |
+| 2 | Razones de bloqueo recurrentes (3+ registros) | Permite hipótesis personalizadas en el reporte |
+| 3 | Patrón de energía por hora del día | Calibra cuándo enviar el nudge para máximo impacto |
+| 4 | Tasa de reactivación post-snooze | Valida si el loop tiene enganche real o es abandono silencioso |
+| 8+ | Perfil de bloqueo individual maduro | Clasificación más precisa, menor necesidad de LLM costoso |
+
+**Flywheel:**
+```
+Más usuarios activos
+       ↓
+Más datos de confirmación / bloqueo / energía
+       ↓
+Clasificación más precisa → nudges mejor timed
+       ↓
+Mejor retención → más datos → más usuarios
+```
 
 ---
 
-## 6) Próximos pasos — Semana 1
+## 6) UX Paradigm — Assistant con Workflow y Estado
 
-> Antes de escribir una línea de código.
+**Paradigma elegido:** Conversational assistant con estado persistente, operando sobre un loop explícito.
 
-- [ ] **Día 1–2:** Entrevistar 5 personas del Segmento A. Pregunta clave: "¿Cómo resolviste hoy el problema de saber qué hacer primero?" y "¿Qué canal usarías: CLI, Telegram o algo más?"
-- [ ] **Día 2:** Spike técnico — integración LLM + respuesta en el canal más rápido de implementar. Si tarda > 2 días, ajustar el scope.
-- [ ] **Día 3–7:** MVP de papel — clasificar manualmente tareas de 3 usuarios durante 5 días (por el canal que cada uno prefiera). Medir si siguen usándolo al Día 5.
-- [ ] **Día 3:** Correr 30 entradas reales por el LLM elegido. Medir accuracy antes de automatizar.
-- [ ] **Día 5:** Mostrar el Flujo #1 (mockup o versión manual) a 5 personas del Segmento A. Preguntar WTP después de verlo funcionar.
+**Por qué no "chat libre":** El chat libre (tipo ChatGPT) no mantiene estado entre sesiones ni conduce el ciclo. El usuario tiene que recordar dónde quedó. PPAI sabe exactamente en qué estado está cada tarea.
+
+**Por qué no "app con UI":** El segmento primario no abre apps de productividad. La fricción de cambio de contexto mata el hábito. Telegram intercepta el comportamiento instintivo de captura donde ya ocurre.
+
+**Por qué Telegram específicamente:**
+- Cero instalación / onboarding para el usuario.
+- Notificaciones push nativas sin configuración.
+- Botones inline para `done / snooze / clarify` sin escribir.
+- El MVP vive en infraestructura del usuario (no requiere app store approval ni web hosting complejo).
+
+---
+
+## 7) AI Decision Triangle — Trade-offs
+
+```
+           CAPABILITY
+              /\
+             /  \
+            /    \
+           /      \
+          /________\
+        COST      SPEED
+```
+
+**Trade-off del MVP:**
+
+| Decisión | Elección | Justificación |
+|---------|---------|---------------|
+| Modelo para clasificación | Pequeño (Haiku / GPT-4o-mini) | Costo < $0.01/tarea. C3 exige accuracy ≥ 75%, no perfección. |
+| Modelo para reporte nocturno | Mediano (Sonnet / GPT-4o) | El reporte es el momento de mayor valor percibido; vale más tokens. |
+| Latencia de respuesta | < 5 segundos para clasificación | El usuario espera en tiempo real; más lento rompe el feeling de "alguien tomó el caos". |
+| Prompt engineering | Prompts cortos y determinísticos | Reduce varianza de output; más fácil auditar el tono del reporte. |
+
+**Hipótesis de costo:** ≤ $0.50/usuario activo/mes con esta arquitectura. *Medir en Semana 1 con uso real.*
+
+---
+
+## 8) Métricas — User Metrics + AI Metrics + Kill Criteria
+
+### User Metrics (comportamiento)
+
+| Métrica | Target | Kill criteria |
+|---------|--------|---------------|
+| Usuarios activos al Día 5 del MVP de papel | ≥ 2 de 3 | < 2/3 → no construir el bot aún |
+| Capturas/día/usuario activo | ≥ 3/día | < 2/día → revisar fricción de captura |
+| % tareas con `/done` registrado | ≥ 40% | < 25% → el loop no está cerrando |
+| % usuarios que reportan culpa post-reporte | ≤ 33% | > 33% → rediseñar tono del reporte |
+| % que califica el reporte como útil | ≥ 60% | < 40% → pivote completo en el flujo de cierre |
+| WTP > $8/mes declarado | ≥ 3 de 5 entrevistados | < 3/5 → revisar segmento o modelo de precio |
+
+### AI Metrics (calidad del sistema)
+
+| Métrica | Target | Kill criteria |
+|---------|--------|---------------|
+| Accuracy de clasificación (tipo/energía) | ≥ 75% sin corrección manual | < 70% → ajustar prompt antes de automatizar |
+| Costo LLM / usuario activo / mes | ≤ $1 | > $2 → cambiar modelo o reducir features |
+| Latencia de respuesta a captura | < 5 segundos | > 10 segundos → revisar arquitectura |
+| Tasa de respuestas con tono acusatorio detectado | 0% | > 0% → audit inmediato de prompt del reporte |
+
+### Métricas de Semana 1 (MVP de papel — antes de código)
+
+- [ ] Día 1–2: Entrevistar 5 personas del Segmento A. Pregunta clave: "¿Cómo resolviste hoy el problema de saber qué hacer primero?"
+- [ ] Día 2: Spike técnico — integración LLM + respuesta en Telegram. Si tarda > 2 días, ajustar scope.
+- [ ] Día 3–7: MVP de papel — clasificar manualmente tareas de 3 usuarios por 5 días. Medir si siguen al Día 5.
+- [ ] Día 3: Correr 30 entradas reales por el LLM elegido. Medir accuracy e instrumentar costo.
+- [ ] Día 5: Mostrar Flujo 1 a 5 personas. Preguntar WTP después de verlo funcionar.
 
 **Condición de GO para Semana 2 (construcción):**
 > ≥ 2 de 3 usuarios del MVP de papel siguen enviando tareas al Día 5 **Y** al menos 1 pregunta espontáneamente "¿cuándo se automatiza esto?"
+
+---
+
+## 9) Riesgos y Trust Guardrails
+
+### Riesgos principales
+
+| ID | Riesgo | Probabilidad | Impacto | Mitigación |
+|----|--------|-------------|---------|-----------|
+| C1 | Usuario no mantiene hábito de captura | Alta | Existencial | Mensaje de apertura de día si no hay capturas antes de las 10:00. Fricción mínima (1 mensaje = 1 tarea). |
+| C3 | Clasificación IA inexacta (< 75%) | Media | Alto | Ajustar prompt antes de automatizar. Medir en 30 entradas reales en Semana 1. |
+| C4 | Reporte nocturno genera culpa | Media | Alto | Prompt audit. Reducir intensidad si usuario reporta culpa. Ver guardrails abajo. |
+| C5 | Costo LLM > $2/usuario/mes | Baja-Media | Alto | Modelo pequeño para clasificación. Cache para tareas recurrentes. Medir desde Semana 1. |
+| C6 | Competidor clona loop en Telegram | Media | Medio | El moat es el dato acumulado, no el bot. Un clon arranca desde cero en datos. |
+
+### Trust Guardrails — reglas no negociables
+
+**Lenguaje del sistema:**
+- Nunca: "fallaste", "no cumpliste", "como siempre", "otra vez", "deberías".
+- Siempre: "¿qué pasó?", "parece que hubo algo que lo dificultó", "mañana es otro ciclo".
+- El reporte nocturno usa hipótesis curiosas, no evaluaciones.
+
+**Si el usuario expresa culpa o vergüenza:**
+- El sistema reconoce sin amplificar ("entendido, fue un día difícil").
+- El siguiente nudge reduce intensidad (solo 1 tarea, no 3).
+- El siguiente reporte amplifica lo que sí se hizo, minimiza lo que no.
+
+**Claims prohibidos:**
+- PPAI no es terapia.
+- PPAI no trata TDAH, ansiedad ni ninguna condición de salud mental.
+- PPAI no hace promesas de resultado ("serás más productivo en X días").
+
+---
+
+## 10) Canales — Roadmap por fases
+
+### Fase 1 (MVP actual) — Telegram Bot
+
+- **Por qué:** máximo time-to-value, mínimo esfuerzo de integración, canal bidireccional nativo con notificaciones push.
+- **Objetivo:** validar el loop completo (capture → confirm → learn → report).
+- **Condición de GO a Fase 2:** targets de retención y utilidad de Semana 1 cumplidos.
+
+### Fase 2 — CLI (siguiente integración)
+
+**Condición:** Telegram MVP supera ≥ 2/3 usuarios activos al Día 5 y ≥ 60% utilidad en reporte.
+
+**Por qué CLI es Fase 2 y no parte del MVP:** Un CLI sin daemon de notificaciones es solo captura — no completa el loop. El valor de PPAI está en el ciclo bidireccional. Telegram lo resuelve nativamente; CLI requiere infraestructura adicional (daemon, notificaciones del sistema) que añade complejidad sin validar primero el loop.
+
+**Comandos mínimos (Fase 2):**
+```bash
+ppai add "terminar módulo 3 del curso"   # Captura desde terminal
+ppai now                                  # Muestra tarea prioritaria del momento
+ppai done                                 # Cierra tarea activa, registra en el loop
+```
+
+El estado del loop se comparte entre Telegram y CLI — el usuario puede capturar en CLI y confirmar en Telegram (o viceversa). Un sistema, un estado.
+
+### Fase 3 — API Web (integraciones)
+
+- Webhooks para automatizaciones y conexiones con flujos externos.
+- Solo si Fase 2 CLI valida que el segmento técnico necesita integración profunda.
+
+---
+
+## 11) Business Goals
+
+| Goal | Métrica | Target MVP | Kill criteria |
+|------|---------|-----------|---------------|
+| Retención de hábito (C1) | Usuarios activos al Día 5 del MVP de papel | ≥ 2 de 3 | < 2/3 → no construir bot; revisar flujo |
+| Calidad de clasificación IA (C3) | % correctamente clasificadas sin corrección | ≥ 75% en 30 entradas | < 70% → ajustar prompt primero |
+| Impacto del reporte (C4) | Culpa ≤ 33% / Útil ≥ 60% | Ver targets arriba | > 33% culpa → rediseñar tono |
+| Señal de demanda / WTP (C2) | WTP > $8/mes tras ver el flujo | ≥ 3 de 5 entrevistados | < 3/5 → pivotar precio o segmento |
+| Costo operativo (C5) | Costo LLM real / usuario activo / mes | ≤ $1 | > $2 → cambiar modelo o reducir features |

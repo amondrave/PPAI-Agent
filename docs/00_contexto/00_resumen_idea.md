@@ -1,137 +1,164 @@
-# PPAI — Sistema Personal de Productividad Automatizado con IA
+# PPAI — Personal Productivity AI
+## Resumen de Idea (Workflow-First Edition)
 
-## ¿Qué es?
-
-PPAI es un agente de productividad personal que **observa, planifica, ejecuta y evalúa** las actividades diarias del usuario usando automatización e IA. Su objetivo es eliminar la fricción que genera procrastinación y convertir las intenciones del usuario en acciones concretas y calendarizadas.
-
----
-
-## Problema que resuelve
-
-| # | Síntoma del usuario | Cómo PPAI responde |
-|---|---|---|
-| 1 | "No sé qué hacer ahora" | El sistema prioriza y te dice exactamente qué es lo siguiente |
-| 2 | "Sé qué hacer pero lo postergo" | Detecta tiempo muerto y fricción, activa al usuario con estrategias |
-| 3 | "Tengo ideas dispersas" | Las captura en lenguaje natural y las convierte en tareas accionables |
-| 4 | "No veo mi progreso" | Genera reportes simples y visuales al final del día |
-| 5 | "Algo me genera fricción y no sé cómo salir" | Propone actividades y herramientas concretas para superarla |
-| 6 | "Quiero rutinas que realmente funcionen" | Aprende del usuario y define su rutina matutina/nocturna ideal |
+Versión: 2.0
+Fecha: 2026-03-04
+Estado: Estrategia activa
 
 ---
 
-## Cómo funciona (flujo general)
+## ¿Qué es PPAI?
 
-### 1. Entrada — Lenguaje natural
-El usuario captura ideas y tareas en cualquier momento vía:
-- **CLI** (texto rápido desde terminal)
-- **Telegram** (bot conversacional)
-- **API Web** (integración futura)
+PPAI es un sistema de **workflow de productividad personal** que opera sobre un loop de estados explícito: captura la intención del usuario, decide la siguiente acción prioritaria, ejecuta el empuje (notificación, prompt, reporte), y aprende del comportamiento real de ejecución y bloqueo. No es un generador de planes — es un conductor de proceso. La diferencia crítica: un output wrapper te da un plan bonito una vez; un workflow loop te acompaña en el ciclo completo y acumula estado y contexto a lo largo del tiempo.
+
+---
+
+## El problema durable post-GPT-6
+
+El problema que PPAI resuelve **no es de output, es de proceso**. GPT-6 puede generar un plan de productividad perfecto. Notion puede almacenarlo. Lo que ningún modelo de lenguaje puede hacer por sí solo es:
+
+- **Mantener estado**: saber qué confirmaste ayer, qué pospusiste tres veces, qué nunca arrancas cuando hay baja energía.
+- **Ejecutar el loop**: iniciar conversaciones en el momento correcto, registrar el resultado, actualizar el contexto.
+- **Aprender del comportamiento real**: no de lo que el usuario dice que hará, sino de lo que realmente hace (o no hace) cuando recibe el nudge.
+
+El valor de PPAI está en la **integración entre momentos**, no en la calidad de un solo mensaje. Eso sobrevive a cualquier mejora de modelo base porque los datos de comportamiento son propietarios, acumulativos y no replicables por un competidor que empiece mañana.
+
+---
+
+## Workflow Loop Central (MVP Telegram)
 
 ```
-"Estudiar streams 30 min"
-"Pagar factura mañana"
-"Idea: app de recordatorios con voz"
+┌─────────────────────────────────────────────────────────┐
+│              WORKFLOW LOOP CENTRAL — PPAI               │
+│                                                         │
+│   CAPTURE ──► DECIDE ──► EXECUTE ──► CONFIRM/UPDATE     │
+│      ▲                                    │             │
+│      │                                    ▼             │
+│   NEXT TASK ◄────────────── LEARN ◄── REPORT            │
+└─────────────────────────────────────────────────────────┘
 ```
 
-### 2. Procesamiento — Motor de IA
-La IA clasifica cada entrada según:
-- **Tipo:** estudio / trabajo / personal / idea / compromiso
-- **Duración:** tiempo estimado y en qué bloques ejecutarla
-- **Energía:** nivel de esfuerzo cognitivo requerido (alto / medio / bajo)
+### Estados del loop
 
-Y decide:
-- ¿Es para hoy o para después?
-- ¿Ahora o en qué momento del día tiene más sentido?
-- ¿Cómo activar al usuario si detecta resistencia?
+| Estado | Qué ocurre | Comandos / Botones |
+|--------|-----------|-------------------|
+| **CAPTURE** | Usuario envía tarea en lenguaje natural | Mensaje libre en Telegram |
+| **DECIDE** | Sistema clasifica, prioriza, asigna energía y hora sugerida | — (automático) |
+| **EXECUTE** | Sistema envía el nudge en el momento correcto | — (automático, triggered) |
+| **CONFIRM/UPDATE** | Usuario cierra el loop informando resultado | `/done` · `/snooze` · `/clarify` |
+| **LEARN** | Sistema registra patrón: ¿completó? ¿posposó? ¿razón? | — (automático) |
+| **REPORT** | Reporte nocturno: síntesis + hipótesis curiosa + 1 recomendación | Mensaje a las 21:00 |
 
-### 3. Automatización
-- Agenda bloques automáticamente en el calendario del usuario
-- Genera recordatorios inteligentes (no spam, sino en el momento correcto)
-- Detecta huecos muertos en el día y los clasifica: ¿ocio necesario o trabajo ligero?
-- Construye rutinas matutinas y nocturnas aprendiendo de los patrones del usuario
+### Comandos mínimos del MVP
 
-### 4. Salida
-- **Plan diario concreto:** máximo 3 tareas clave (inamovibles) + N tareas secundarias opcionales
-- **Reporte nocturno automático:**
-  - Qué se cumplió
-  - Qué se evitó y por qué (análisis de fricción)
-  - Sugerencias para el día siguiente
-  - *(Informe gráfico — fuera del MVP inicial)*
+```
+/done      → Tarea completada. Cierra el estado, registra energía final.
+/snooze    → Posponer. Pide razón (opcional). Registra patrón de bloqueo.
+/clarify   → La tarea no es accionable. Reabre captura para refinar.
+```
 
----
+> Los botones inline de Telegram reemplazan los comandos cuando el sistema hace el nudge (el usuario ve [✓ Hecho] [⏸ Posponer] [? Aclarar] sin escribir nada).
 
-## Plan de trabajo — 4 semanas
+### Scope del loop — qué NO entra en MVP
 
-### Semana 1 — Definición y arquitectura base
-**Objetivo:** Tener claridad total del sistema antes de escribir código.
-
-- [ ] Definir persona objetivo (usuario primario)
-- [ ] Mapear el JTBD (Job to be Done) principal
-- [ ] Diseñar el modelo de datos: tarea, sesión, reporte
-- [ ] Elegir stack técnico (CLI, bot de Telegram, LLM)
-- [ ] Definir el alcance del MVP: qué entra y qué se deja fuera
-- [ ] Documentar supuestos y riesgos (`01_supuestos_y_riesgos.md`)
-
-**Entregable:** Documento de arquitectura + backlog priorizado
+- No hay integración con Google Calendar ni calendarios externos.
+- No hay dashboards ni reportes gráficos.
+- No hay rutinas complejas (descansos, pomodoro, bloques temáticos avanzados).
+- No hay detección de "huecos muertos" en agenda (no tenemos acceso al calendario).
+- No hay múltiples canales simultáneos (CLI es Fase 2).
 
 ---
 
-### Semana 2 — MVP Core: captura + clasificación IA
-**Objetivo:** El sistema puede recibir una tarea en lenguaje natural y devolver una clasificación útil.
+## Moat primario: Data Behavioral Moat
 
-- [ ] Implementar CLI o bot de Telegram funcional
-- [ ] Conectar con LLM (Claude / GPT) para clasificación de tareas
-- [ ] Persistir tareas en base de datos simple (SQLite o JSON local)
-- [ ] Mostrar lista de tareas del día con prioridad sugerida
-- [ ] Validar clasificaciones con al menos 1 usuario real (puede ser uno mismo)
+**Elección: Data Moat (único moat primario).** La distribución por Telegram es ventaja de tiempo-al-valor, no moat.
 
-**Entregable:** CLI/bot que captura, clasifica y lista tareas del día
+### ¿Qué datos exactos capturamos?
 
----
+Cada ciclo del loop genera datos que ningún competidor que empiece mañana puede comprar:
 
-### Semana 3 — Automatización y reporte nocturno
-**Objetivo:** El sistema actúa, no solo registra.
+| Dato capturado | Cómo se genera | Por qué es valioso |
+|---------------|----------------|-------------------|
+| Tasa de confirmación por tipo de tarea | `/done` vs ausencia de respuesta | Revela qué categorías el usuario realmente ejecuta |
+| Razón de posposición | Respuesta libre al `/snooze` | Identifica patrones de bloqueo individuales |
+| Hora real de ejecución vs hora sugerida | Timestamp de `/done` | Calibra el modelo de energía del usuario |
+| Energía reportada al completar | Emoji / escala 1-3 al hacer `/done` | Construye perfil de energía circadiana |
+| Latencia de respuesta al nudge | Tiempo entre nudge y acción | Mide fricción real del canal y del momento |
+| Tasa de reactivación post-bloqueo | Si vuelve a capturar después de `/snooze` | Valida si el loop tiene enganche real |
 
-- [ ] Implementar agendado de bloques de trabajo (integración básica con calendario o recordatorios)
-- [ ] Generar recordatorios inteligentes basados en la clasificación de energía
-- [ ] Implementar detección de huecos muertos (comparar agenda vs tiempo real)
-- [ ] Construir reporte nocturno automático (texto por ahora, sin gráficas)
-- [ ] Lógica de activación ante señales de procrastinación
-
-**Entregable:** Sistema que agenda, recuerda y reporta automáticamente
+**Flywheel:** más usuarios → más datos → clasificación más precisa → nudges mejor timed → mejor retención → más usuarios.
 
 ---
 
-### Semana 4 — Validación e iteración
-**Objetivo:** Aprender si el sistema resuelve el problema real.
+## MVP Scope — Telegram-only
 
-- [ ] Prueba de uso durante 5 días seguidos (usuario real)
-- [ ] Recopilar feedback cualitativo: ¿qué fricción generó el propio sistema?
-- [ ] Ajustar clasificación de IA según casos de error encontrados
-- [ ] Definir qué características pasan a la siguiente iteración
-- [ ] Documentar aprendizajes y decisiones (`02_aprendizajes.md`)
+| Incluido | Excluido |
+|---------|---------|
+| Captura en lenguaje natural vía Telegram | CLI (Fase 2) |
+| Clasificación tipo / energía / urgencia | Integración con calendarios |
+| Nudge en momento sugerido | Dashboard web / app móvil |
+| Comandos `/done` `/snooze` `/clarify` + botones | Reportes gráficos |
+| Reporte nocturno (texto, 21:00) | Aprendizaje automático avanzado |
+| Registro de razones de bloqueo | Rutinas complejas (pomodoro, etc.) |
+| Perfil de energía básico | Claims de salud mental / terapia |
 
-**Entregable:** Reporte de validación + decisión de qué construir en la v2
+### Anti-features explícitas
 
----
-
-## Alcance del MVP (qué sí y qué no)
-
-| Incluido en MVP | Excluido del MVP |
-|---|---|
-| Captura por CLI o Telegram | Interfaz web / app móvil |
-| Clasificación con IA | Aprendizaje automático avanzado |
-| Lista diaria priorizada (3+N) | Informe gráfico |
-| Reporte nocturno en texto | Integración con múltiples calendarios |
-| Recordatorios básicos | Análisis de productividad histórico |
-| Detección de huecos muertos | Coaching conversacional complejo |
+- El sistema **nunca usa lenguaje acusatorio** ("fallaste", "no cumpliste", "como siempre").
+- Si el usuario expresa culpa o vergüenza, el sistema **reduce intensidad** del siguiente nudge.
+- El reporte nocturno usa **hipótesis curiosas**, no evaluaciones de desempeño.
+- PPAI **no es terapia, no es coaching de salud mental** y no debe presentarse como tal.
 
 ---
 
-## Visión a futuro (fuera del MVP)
+## Roadmap: Fase 2 — CLI
 
-- Modo "coach de procrastinación": el sistema conversa y ayuda a desbloquear resistencia
-- Reportes visuales semanales y mensuales
-- Aprendizaje continuo del perfil de energía del usuario
-- Integración con Google Calendar, Notion, Obsidian
-- API pública para que otros sistemas envíen tareas a PPAI
+**Condición de activación:** Telegram MVP supera targets de retención (≥ 2/3 usuarios activos al Día 5) y utilidad (≥ 60% reporta el reporte nocturno como útil).
+
+### Comandos CLI mínimos (Fase 2)
+
+```bash
+ppai add "terminar módulo 3 del curso"   # Captura rápida desde terminal
+ppai now                                  # Muestra la tarea prioritaria del momento
+ppai done                                 # Cierra la tarea activa
+```
+
+**Por qué CLI es Fase 2 y no parte del MVP:** El loop completo (capture → confirm → learn) requiere canal bidireccional con nudge proactivo. Un CLI sin daemon de notificaciones es solo captura — no completa el loop. Telegram lo resuelve de forma nativa.
+
+---
+
+## Riesgos principales y mitigación
+
+### C1 — El usuario no mantiene el hábito de captura
+
+**Riesgo:** Sin capturas, el loop no arranca. El sistema queda vacío y el usuario lo abandona.
+
+**Señal temprana:** < 3 capturas/día en los primeros 3 días del MVP de papel.
+
+**Mitigación:** Reducir la fricción de captura al mínimo absoluto (1 mensaje = 1 tarea). Enviar un mensaje de apertura de día con "¿qué tienes hoy?" si no hay capturas antes de las 10:00.
+
+**Cómo medir en Semana 1:** Capturas/día/usuario. *HIPÓTESIS: el usuario técnico captura ≥ 3 tareas/día si el canal es Telegram.*
+
+---
+
+### C4 — El reporte nocturno genera culpa, no insight
+
+**Riesgo:** El tono equivocado destruye la retención. El usuario siente que el sistema lo juzga.
+
+**Señal temprana:** > 33% de usuarios reporta sentirse culpable o avergonzado tras leer el reporte.
+
+**Mitigación:** Todo prompt del reporte nocturno usa framing de "¿qué pasó?" (curioso) nunca "no lo lograste" (acusatorio). Si el usuario reporta culpa, el siguiente reporte reduce detalles de tareas no completadas y amplifica lo que sí se hizo.
+
+**Cómo medir en Semana 1:** Pregunta directa post-reporte: "¿Cómo te sentiste al leer esto? (útil / neutral / culpable)".
+
+---
+
+### C5 — El costo LLM por usuario activo hace el modelo inviable
+
+**Riesgo:** Con uso real (captura + clasificación + reporte), el costo de tokens supera lo que el usuario pagaría.
+
+**Señal temprana:** Costo > $1/usuario activo/mes con uso medido en el MVP de papel.
+
+**Mitigación:** Clasificación con modelo pequeño (Haiku / GPT-4o-mini) para captura; modelo más capaz solo para el reporte nocturno. Cache de clasificaciones para tareas recurrentes.
+
+**Cómo medir en Semana 1:** Instrumentar cada llamada LLM con costo estimado. Calcular costo por usuario al final del MVP de papel. *HIPÓTESIS: costo ≤ $0.50/usuario activo/mes con modelo pequeño para clasificación.*
