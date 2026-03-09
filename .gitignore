@@ -1,0 +1,21 @@
+# Configuración local con credenciales — NUNCA subir a GitHub
+.claude/mcp.json
+
+# Variables de entorno
+.env
+.env.local
+
+# Dependencias
+node_modules/
+
+# Base de datos local (incluyendo archivos de journal de SQLite)
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+
+# macOS
+.DS_Store
+
+# Logs
+*.log
