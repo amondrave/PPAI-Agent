@@ -1,4 +1,4 @@
-# Configuración local con credenciales — NUNCA subir a GitHub
+# Configuracion local con credenciales — NUNCA subir a GitHub
 .claude/mcp.json
 .mcp.json
 .claude/skills/.fuse_*
@@ -21,3 +21,37 @@ node_modules/
 
 # Logs
 *.log
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+
+# Terraform
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.backup
+terraform/*.tfplan
+.terraform.lock.hcl
+
+# Docker
+*.tar
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo

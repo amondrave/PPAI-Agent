@@ -1,0 +1,37 @@
+[tool.poetry]
+name = "ppai"
+version = "0.1.0"
+description = "Personal Productivity AI Agent — Telegram bot for task capture and management"
+authors = ["Angel Mondragon"]
+readme = "README.md"
+packages = [{include = "ppai"}]
+
+[tool.poetry.dependencies]
+python = "^3.12"
+python-telegram-bot = "^21.10"
+boto3 = "^1.36.0"
+pydantic = "^2.10.0"
+pydantic-settings = "^2.7.0"
+structlog = "^24.4.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.0"
+pytest-asyncio = "^0.25.0"
+pytest-cov = "^6.0.0"
+moto = {version = "^5.0.0", extras = ["dynamodb"]}
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.coverage.run]
+source = ["ppai"]
+omit = ["tests/*"]
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true
