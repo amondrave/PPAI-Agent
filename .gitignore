@@ -1,5 +1,7 @@
 # Configuración local con credenciales — NUNCA subir a GitHub
 .claude/mcp.json
+.mcp.json
+.claude/skills/.fuse_*
 
 # Variables de entorno
 .env

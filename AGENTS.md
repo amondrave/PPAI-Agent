@@ -188,18 +188,44 @@ Feature: {nombre del feature del PRD}
 
 ---
 
+## AI-DLC (AI Development Lifecycle)
+
+Este repositorio sigue el framework **AI-DLC** para el ciclo de desarrollo completo.
+
+| Archivo / Carpeta | Propósito |
+|---|---|
+| `AI_DLC_WORKFLOW.md` | Workflow maestro: fases, etapas y reglas de ejecución |
+| `.aidlc-rule-details/` | Reglas detalladas por fase (Inception, Construction, Operations) |
+| `aidlc-docs/` | Artefactos generados por el AIDLC (requirements, stories, diseño, etc.) |
+| `aidlc-docs/aidlc-state.md` | Estado actual del workflow (qué fases están completas) |
+| `aidlc-docs/audit.md` | Log completo de interacciones con el framework |
+
+**Fases del AIDLC:**
+1. **Inception** — Requirements, User Stories, Application Design, Units Generation
+2. **Construction** — Functional Design, NFR, Infrastructure, Code Generation, Build & Test
+3. **Operations** — (placeholder, expansión futura)
+
+**PRD fuente:** `specs/prd.md` — este es el documento de referencia para cualquier re-alimentación del framework.
+
+Para retomar el workflow, leer `aidlc-docs/aidlc-state.md` y continuar desde donde quedó.
+
+---
+
 ## Estado actual del proyecto
 
 | Fase | Estado |
 |------|--------|
 | PRD v1.0 | ✅ Completo |
 | Product Vision Board v2.0 | ✅ Completo |
-| Configuración MCPs | ✅ Completo (3/3 MCPs) |
+| Configuración MCPs | ✅ Completo (filesystem, github, sqlite, linear) |
 | Skill prd-to-backlog | ✅ Completo |
 | Skill story-to-bdd | ✅ Completo |
 | Skill changelog | ✅ Completo |
 | Sub-Agente 1: Specification Agent | ✅ Completo |
 | Sub-Agente 2: Quality Agent | ✅ Completo |
+| AIDLC Inception | ✅ Completo (todas las etapas) |
+| AIDLC Construction — Design | ✅ Completo (Functional, NFR, Infrastructure) |
+| AIDLC Construction — Code Generation | ⏳ En progreso (Part 2 pendiente) |
 | Backlog | ⏳ Pendiente (listo para generar — activar Specification Agent) |
 | Arquitectura técnica | ⏳ Pendiente |
 | Tests BDD skeleton | ⏳ Pendiente (requiere Skill story-to-bdd) |
