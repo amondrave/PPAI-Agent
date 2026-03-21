@@ -8,8 +8,10 @@ class Settings(BaseSettings):
     dedup_window_seconds: int = 300
     rate_limit_per_minute: int = 10
     aws_region: str = "us-east-1"
+    # LocalStack: set to http://localhost:4566 for local development, None for AWS prod
+    dynamodb_endpoint_url: str | None = None
 
-    model_config = {"env_prefix": "", "case_sensitive": False}
+    model_config = {"env_prefix": "", "case_sensitive": False, "env_file": ".env"}
 
 
 def get_settings() -> Settings:

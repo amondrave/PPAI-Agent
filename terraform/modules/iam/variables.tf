@@ -18,6 +18,12 @@ variable "cycles_table_arn" {
   type        = string
 }
 
+variable "github_repo" {
+  description = "GitHub repo en formato owner/repo — restringe el OIDC role a este repo"
+  type        = string
+  default     = "amondrave/PPAI-Agent"
+}
+
 variable "ecr_repository_arn" {
   description = "ARN of the ECR repository"
   type        = string

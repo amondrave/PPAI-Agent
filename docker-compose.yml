@@ -1,0 +1,41 @@
+version: "3.9"
+
+services:
+  localstack:
+    image: localstack/localstack:3.4
+    container_name: ppai-localstack
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=dynamodb
+      - DEFAULT_REGION=us-east-1
+      - EAGER_SERVICE_LOADING=1
+    volumes:
+      - localstack-data:/var/lib/localstack
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  create-tables:
+    image: python:3.12-slim
+    container_name: ppai-create-tables
+    depends_on:
+      localstack:
+        condition: service_healthy
+    environment:
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - AWS_DEFAULT_REGION=us-east-1
+      - DYNAMODB_ENDPOINT_URL=http://localstack:4566
+    volumes:
+      - ./scripts:/scripts
+    command: >
+      sh -c "pip install boto3 --quiet &&
+             python /scripts/create-local-tables.py"
+    restart: "no"
+
+volumes:
+  localstack-data:
