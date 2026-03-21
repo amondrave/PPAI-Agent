@@ -3,6 +3,10 @@
 .mcp.json
 .claude/skills/.fuse_*
 
+# Skill artifacts — binarios empaquetados y reportes de evaluación
+*.skill
+*-eval-review.html
+
 # Variables de entorno
 .env
 .env.local
