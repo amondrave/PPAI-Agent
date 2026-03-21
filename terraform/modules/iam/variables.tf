@@ -13,6 +13,11 @@ variable "dedup_table_arn" {
   type        = string
 }
 
+variable "cycles_table_arn" {
+  description = "ARN of the cycles DynamoDB table (UOW-02)"
+  type        = string
+}
+
 variable "ecr_repository_arn" {
   description = "ARN of the ECR repository"
   type        = string

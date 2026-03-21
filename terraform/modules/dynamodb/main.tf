@@ -71,3 +71,40 @@ resource "aws_dynamodb_table" "dedup" {
 
   tags = { Name = "${var.table_prefix}-dedup" }
 }
+
+# UOW-02: ExecutionCycle table
+resource "aws_dynamodb_table" "cycles" {
+  name         = "${var.table_prefix}-cycles"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "cycleId"
+
+  attribute {
+    name = "cycleId"
+    type = "S"
+  }
+
+  attribute {
+    name = "userId"
+    type = "S"
+  }
+
+  attribute {
+    name = "date"
+    type = "S"
+  }
+
+  global_secondary_index {
+    name            = "userId-date-index"
+    hash_key        = "userId"
+    range_key       = "date"
+    projection_type = "ALL"
+  }
+
+  server_side_encryption {
+    enabled = true
+  }
+
+  deletion_protection_enabled = true
+
+  tags = { Name = "${var.table_prefix}-cycles", Unit = "uow-02" }
+}

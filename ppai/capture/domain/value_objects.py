@@ -9,6 +9,7 @@ class TaskStatus(StrEnum):
     DONE = "done"
     SNOOZED = "snoozed"
     CLARIFYING = "clarifying"
+    NEEDS_CLARIFICATION = "needs_clarification"
 
 
 ACTIVE_STATUSES = frozenset({

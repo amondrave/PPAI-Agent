@@ -9,3 +9,7 @@ output "events_table_arn" {
 output "dedup_table_arn" {
   value = aws_dynamodb_table.dedup.arn
 }
+
+output "cycles_table_arn" {
+  value = aws_dynamodb_table.cycles.arn
+}

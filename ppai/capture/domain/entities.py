@@ -24,6 +24,7 @@ class TaskState:
     source_intent_id: str
     tag: str | None = None
     deadline: datetime | None = None
+    snooze_count: int = 0
     status: TaskStatus = TaskStatus.CAPTURED
     task_id: str = field(default_factory=generate_id)
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))

@@ -99,6 +99,20 @@ resource "aws_iam_role_policy" "task" {
         ]
         Resource = var.dedup_table_arn
       },
+      # UOW-02: ExecutionCycle permissions
+      {
+        Effect = "Allow"
+        Action = [
+          "dynamodb:PutItem",
+          "dynamodb:GetItem",
+          "dynamodb:UpdateItem",
+          "dynamodb:Query",
+        ]
+        Resource = [
+          var.cycles_table_arn,
+          "${var.cycles_table_arn}/index/*",
+        ]
+      },
     ]
   })
 }

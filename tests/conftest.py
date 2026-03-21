@@ -56,4 +56,28 @@ def dynamodb_resource():
             BillingMode="PAY_PER_REQUEST",
         )
 
+        # UOW-02: ExecutionCycle table
+        resource.create_table(
+            TableName="ppai-cycles",
+            KeySchema=[
+                {"AttributeName": "cycleId", "KeyType": "HASH"},
+            ],
+            AttributeDefinitions=[
+                {"AttributeName": "cycleId", "AttributeType": "S"},
+                {"AttributeName": "userId", "AttributeType": "S"},
+                {"AttributeName": "date", "AttributeType": "S"},
+            ],
+            GlobalSecondaryIndexes=[
+                {
+                    "IndexName": "userId-date-index",
+                    "KeySchema": [
+                        {"AttributeName": "userId", "KeyType": "HASH"},
+                        {"AttributeName": "date", "KeyType": "RANGE"},
+                    ],
+                    "Projection": {"ProjectionType": "ALL"},
+                }
+            ],
+            BillingMode="PAY_PER_REQUEST",
+        )
+
         yield resource

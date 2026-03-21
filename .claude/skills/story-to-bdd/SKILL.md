@@ -1,17 +1,9 @@
 # Skill: story-to-bdd
 
-**Versión:** 1.0-draft (JavaScript / Jest)
+**Versión:** 2.0 (Python / pytest + behave)
 **Proyecto:** PPAI (Personal Productivity AI)
 **Autor:** Co-creado Angel Mondragon + Claude
-**Última actualización:** 2026-03-09
-
-> ⚠️ **Nota de migración pendiente:** PPAI está construido en Python.
-> Esta versión del Skill genera skeletons en **Jest (JavaScript)** como prueba de concepto.
-> Migrar a **v2.0 Python** cuando se defina la arquitectura de tests:
-> - BDD runner: `behave` (Gherkin nativo en Python)
-> - Unit tests: `pytest`
-> - Archivos output: `.feature` (sin cambios) + `test_{story}.py` (en lugar de `.test.js`)
-> - El Gherkin es agnóstico al lenguaje — los `.feature` no necesitan cambios.
+**Última actualización:** 2026-03-18
 
 ---
 
@@ -19,10 +11,10 @@
 
 Este Skill toma **una User Story** de `specs/backlog.md` y genera dos artefactos:
 
-1. **Archivo `.feature`** — escenarios BDD en formato Gherkin (Given / When / Then)
-2. **Archivo `.test.js`** — skeleton de tests unitarios/integración en Jest (vacío, listo para implementar)
+1. **Archivo `.feature`** — escenarios BDD en formato Gherkin (Given / When / Then), para correr con `behave`
+2. **Archivo `test_{story}.py`** — skeleton de tests unitarios en `pytest` (vacío, en RED, listo para implementar)
 
-Es el puente entre el backlog y el código. El Sub-Agente 2 (Quality Agent) usa este Skill.
+Es el puente entre el backlog y el código. Aplica el ciclo TDD: **Red → Green → Refactor**.
 
 ---
 
@@ -31,9 +23,9 @@ Es el puente entre el backlog y el código. El Sub-Agente 2 (Quality Agent) usa 
 Activar cuando:
 - Se va a implementar una story específica del backlog.
 - Se necesita contrato de comportamiento antes de escribir código.
-- El equipo quiere TDD/BDD: primero el test, luego la implementación.
+- Se quiere TDD/BDD: primero el test, luego la implementación.
 
-**Input requerido:** ID de story (ej. `S1.1`, `S2.3`)
+**Input requerido:** ID de story (ej. `S2.1`, `S2.3`)
 
 Si no se especifica una story, pedir cuál antes de proceder.
 
@@ -70,8 +62,8 @@ Leer en `AGENTS.md`:
 - Naming conventions
 
 Leer en `specs/prd.md`:
-- Principios de diseño no negociables (Segmento 6) — en especial "Tono no acusatorio"
-- El caso de uso relacionado con esta story (Segmento 5)
+- Principios de diseño no negociables — en especial "Tono no acusatorio"
+- El caso de uso relacionado con esta story
 
 ### PASO 3 — Definir la ubicación de los archivos output
 
@@ -79,19 +71,19 @@ Leer en `specs/prd.md`:
 
 ```
 tests/
-└── features/
-│   └── {epica-id}/
-│       └── {story-id}.feature          ← escenarios Gherkin
+├── features/
+│   └── e{n}/
+│       └── s{n}-{m}.feature          ← escenarios Gherkin (behave)
 └── unit/
-    └── {epica-id}/
-        └── {story-id}.test.js          ← skeleton Jest
+    └── e{n}/
+        └── test_s{n}_{m}.py          ← skeleton pytest (RED)
 ```
 
 **Conversión de IDs a nombres de archivo:**
-- `S1.1` → carpeta `e1/`, archivos `s1-1.feature` y `s1-1.test.js`
-- `S3.2` → carpeta `e3/`, archivos `s3-2.feature` y `s3-2.test.js`
+- `S2.1` → carpeta `e2/`, archivos `s2-1.feature` y `test_s2_1.py`
+- `S3.2` → carpeta `e3/`, archivos `s3-2.feature` y `test_s3_2.py`
 
-Verificar si el directorio existe; si no, crearlo.
+Verificar si el directorio existe; si no, crearlo (con `__init__.py` vacío en carpetas de tests).
 
 ### PASO 4 — Generar el archivo `.feature`
 
@@ -143,111 +135,104 @@ Scenario: El sistema responde sin lenguaje acusatorio
 - ❌ `Then la función classify() retorna "ALTA"`
 - ✅ `Then el sistema muestra la tarea con prioridad "Alta"`
 
-### PASO 5 — Generar el archivo `.test.js` (skeleton)
+### PASO 5 — Generar el archivo `test_{story}.py` (skeleton pytest)
 
-Generar un archivo Jest con estructura base, **SIN implementación** — solo los `describe` / `it` blocks con nombres descriptivos y `// TODO`.
+Generar un archivo pytest con estructura base, **SIN implementación** — solo `describe`-equivalentes con clases y métodos `test_*` con `pytest.fail("not implemented")`.
 
 **Estructura base:**
 
-```javascript
-/**
- * Story: {ID} — {nombre de la story}
- * Épica: {nombre de la épica}
- * BDD feature: tests/features/{epica-id}/{story-id}.feature
- *
- * Convención de naming: inglés para código, español en comentarios de negocio
- */
+```python
+"""
+Story: {ID} — {nombre de la story}
+Épica: {nombre de la épica}
+BDD feature: tests/features/e{n}/s{n}-{m}.feature
 
-// ============================================================
-// DEPENDENCIAS — completar con los módulos reales al implementar
-// ============================================================
-// const { modulo } = require('../../src/modulo');
+Convención: inglés para código, comentarios de negocio en español.
+TDD: todos los tests empiezan en RED (pytest.fail). Implementar para pasar a GREEN.
+"""
+import pytest
 
-describe('{StoryId} — {nombre técnico del módulo}', () => {
+# ============================================================
+# DEPENDENCIAS — completar con los módulos reales al implementar
+# ============================================================
+# from ppai.{modulo}.application.{service} import {Service}
 
-  // Setup compartido (opcional)
-  beforeEach(() => {
-    // TODO: inicializar estado de test
-  });
 
-  afterEach(() => {
-    // TODO: limpiar estado si aplica
-  });
+class Test{StoryId}HappyPath:
+    """Happy path — {descripción del escenario principal en español}"""
 
-  // ----------------------------------------------------------
-  // Happy Path
-  // ----------------------------------------------------------
-  describe('Happy path', () => {
-    it('should {descripción técnica del comportamiento esperado}', async () => {
-      // Arrange — {descripción del estado inicial en español}
-      // TODO: configurar datos de entrada
+    def test_{descripcion_tecnica}(self):
+        # Arrange — {descripción del estado inicial en español}
+        # TODO: configurar datos de entrada
 
-      // Act — {descripción de la acción en español}
-      // TODO: ejecutar la función bajo prueba
+        # Act — {descripción de la acción en español}
+        # TODO: ejecutar el servicio/función bajo prueba
 
-      // Assert — {descripción del resultado esperado en español}
-      // TODO: verificar resultado
-      expect(true).toBe(false); // reemplazar con assertion real
-    });
-  });
+        # Assert — {descripción del resultado esperado en español}
+        # TODO: verificar resultado
+        pytest.fail("not implemented")
 
-  // ----------------------------------------------------------
-  // Edge Cases
-  // ----------------------------------------------------------
-  describe('Edge cases', () => {
-    it('should handle {descripción del caso límite}', async () => {
-      // Arrange
-      // TODO
 
-      // Act
-      // TODO
+class Test{StoryId}EdgeCases:
+    """Edge cases — {descripción del caso límite en español}"""
 
-      // Assert
-      // TODO
-      expect(true).toBe(false);
-    });
-  });
+    def test_{descripcion_caso_limite}(self):
+        # Arrange
+        # TODO
 
-  // ----------------------------------------------------------
-  // Guardrails (solo si la story involucra comunicación con usuario)
-  // ----------------------------------------------------------
-  describe('Guardrails de tono', () => {
-    it('should not use accusatory language in output', async () => {
-      // Arrange — {descripción del escenario adversarial}
-      // TODO: preparar caso donde usuario tuvo bajo rendimiento
+        # Act
+        # TODO
 
-      // Act
-      // TODO: ejecutar generación de mensaje
+        # Assert
+        pytest.fail("not implemented")
 
-      // Assert — verificar ausencia de lenguaje prohibido
-      const prohibitedWords = ['fallaste', 'no cumpliste', 'fracasaste', 'otra vez'];
-      // TODO: obtener output real
-      const output = '';
-      prohibitedWords.forEach(word => {
-        expect(output.toLowerCase()).not.toContain(word);
-      });
-    });
-  });
 
-});
+# Solo incluir si la story involucra comunicación con usuario
+class Test{StoryId}ToneGuardrails:
+    """Guardrails de tono — el sistema no debe usar lenguaje acusatorio"""
+
+    PROHIBITED_WORDS = [
+        "fallaste", "no cumpliste", "fracasaste", "otra vez", "como siempre",
+        "deberías", "tenías que",
+    ]
+
+    def test_output_does_not_contain_accusatory_language(self):
+        # Arrange — preparar escenario donde usuario tuvo bajo rendimiento
+        # TODO: construir contexto con tareas no completadas
+
+        # Act — generar mensaje del sistema
+        # TODO: invocar generación de mensaje
+        output = ""  # reemplazar con output real
+
+        # Assert — verificar ausencia de lenguaje prohibido
+        for word in self.PROHIBITED_WORDS:
+            assert word not in output.lower(), f"Lenguaje prohibido encontrado: '{word}'"
+        pytest.fail("not implemented — completar Arrange y Act")
 ```
 
 **Reglas para el skeleton:**
-- Todos los `it()` deben tener nombre descriptivo en inglés técnico
-- Los comentarios de negocio en español (qué estamos probando conceptualmente)
-- Incluir bloque `Guardrails` solo si la story tiene AC de tono
-- Cada `it()` que salga del `.feature` debe tener su test correspondiente
-- Cada `expect()` debe ser incorrecto (`false`/`toBe(false)`) para que el test falle hasta ser implementado — esto es TDD: red first
+- Clases como agrupadores (equivalente a `describe`): `Test{StoryId}HappyPath`, `Test{StoryId}EdgeCases`, `Test{StoryId}ToneGuardrails`
+- Métodos `test_*` en snake_case, nombre descriptivo en inglés técnico
+- Comentarios de negocio en español dentro de cada método
+- Incluir clase `ToneGuardrails` solo si la story tiene AC de tono
+- Cada método termina en `pytest.fail("not implemented")` — esto es TDD: **RED first**
+- No implementar lógica real en el skeleton
 
-### PASO 6 — Verificar coherencia entre artefactos
+### PASO 6 — Crear `__init__.py` si no existen
+
+Para cada directorio nuevo creado bajo `tests/`:
+- Crear `__init__.py` vacío para que pytest los descubra correctamente
+
+### PASO 7 — Verificar coherencia entre artefactos
 
 Antes de finalizar, confirmar:
 
-- [ ] Cada `Scenario:` en el `.feature` tiene al menos un `it()` en el `.test.js`
+- [ ] Cada `Scenario:` en el `.feature` tiene al menos un método `test_*` en el `.py`
 - [ ] Los nombres de scenarios y tests son trazables entre sí
 - [ ] No hay AC en el backlog sin cobertura en algún escenario
 - [ ] El nombre del `Feature:` coincide con el nombre de la épica en el backlog
 - [ ] Los archivos están en los directorios correctos
+- [ ] Existen `__init__.py` en todos los directorios nuevos
 
 ---
 
@@ -278,7 +263,7 @@ Feature: {Nombre de la épica}
     And ...
 ```
 
-### Archivo 2: `tests/unit/e{n}/s{n}-{m}.test.js`
+### Archivo 2: `tests/unit/e{n}/test_s{n}_{m}.py`
 
 Ver estructura completa en PASO 5.
 
@@ -288,10 +273,10 @@ Ver estructura completa en PASO 5.
 
 | ❌ Prohibido | ✅ Permitido |
 |-------------|-------------|
-| Implementar lógica real en el skeleton | Solo `// TODO` y `expect(false)` |
+| Implementar lógica real en el skeleton | Solo `# TODO` y `pytest.fail()` |
 | Usar términos técnicos en pasos Gherkin | Lenguaje de negocio en Gherkin |
 | Inventar escenarios fuera de los ACs | Derivar de ACs y principios del PRD |
-| Omitir el escenario de guardrail si aplica | Siempre incluir cuando hay comunicación con usuario |
+| Omitir el guardrail si la story tiene AC de tono | Siempre incluir `ToneGuardrails` cuando aplica |
 | Usar lenguaje acusatorio en nombres de test | Tono neutro y técnico en todo el archivo |
 | Modificar `specs/backlog.md` o `specs/prd.md` | Solo leer esos archivos |
 
@@ -303,34 +288,36 @@ Usar estos nombres en el código del skeleton (no en los pasos Gherkin):
 
 | Concepto | Nombre en código | Módulo esperado |
 |----------|-----------------|-----------------|
-| Tarea capturada | `Task` | `task-capture` |
-| Ciclo de ejecución | `ExecutionCycle` | `execution-engine` |
-| Patrón de bloqueo | `BlockingPattern` | `pattern-detector` |
-| Nudge | `Nudge` | `nudge-orchestrator` |
-| Reporte nocturno | `DailyReport` | `report-generator` |
-| Guardrail de tono | `ToneGuardrail` | `guardrails` |
+| Tarea capturada | `TaskState` | `ppai.capture` |
+| Ciclo de ejecución | `ExecutionCycle` | `ppai.decision` |
+| Motor de priorización | `PrioritizationEngine` | `ppai.decision` |
+| Patrón de bloqueo | `BlockingPattern` | `ppai.learning` |
+| Nudge | `Nudge` | `ppai.nudge` |
+| Reporte nocturno | `DailyReport` | `ppai.report` |
+| Guardrail de tono | `ToneGuardrail` | `ppai.shared.guardrails` |
 
 ---
 
 ## Ejemplo de ejecución completa
 
-**Input:** `S1.1 — Captura de tarea en lenguaje natural`
+**Input:** `S2.1 — Priorización automática y presentación del Top 3`
 
 **Output esperado:**
 
 ```
 tests/
-└── features/
-│   └── e1/
-│       └── s1-1.feature
+├── features/
+│   └── e2/
+│       └── s2-1.feature
 └── unit/
-    └── e1/
-        └── s1-1.test.js
+    └── e2/
+        ├── __init__.py
+        └── test_s2_1.py
 ```
 
 Con:
-- `s1-1.feature`: 3 escenarios (happy path: captura exitosa, edge case: texto vacío o ambiguo, guardrail: confirmación sin tono agresivo)
-- `s1-1.test.js`: 3 `it()` blocks en red (failing), listos para implementar
+- `s2-1.feature`: 3 escenarios (happy path: Top 3 presentado, edge case: menos de 3 tareas, guardrail: tono no acusatorio)
+- `test_s2_1.py`: 3 clases con métodos `test_*` en RED (`pytest.fail`), listos para implementar
 
 ---
 
@@ -343,12 +330,12 @@ Al terminar, reportar al usuario:
 
 Archivos creados:
 - tests/features/e{n}/s{n}-{m}.feature  ({N} escenarios)
-- tests/unit/e{n}/s{n}-{m}.test.js      ({N} tests en red)
+- tests/unit/e{n}/test_s{n}_{m}.py      ({N} tests en RED)
 
 Cobertura de ACs:
 - AC 1: ✅ cubierto en Scenario "{nombre}"
 - AC 2: ✅ cubierto en Scenario "{nombre}"
 - AC 3: ✅ cubierto en Scenario "{nombre}"
 
-Siguiente paso: implementar los módulos y hacer pasar los tests (green).
+Siguiente paso: implementar los módulos y hacer pasar los tests (GREEN).
 ```
