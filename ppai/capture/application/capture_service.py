@@ -51,6 +51,9 @@ class CaptureService:
         self._event_repo = event_repo
         self._dedup_repo = dedup_repo
         self._active_task_limit = active_task_limit
+        # Optional hook: called with user_id after at least one task is captured.
+        # Used by DecisionService to invalidate the Top 3 cache (UOW-02).
+        self.on_task_captured: callable[[str], None] | None = None
 
     def process_message(self, user_id: str, text: str | None) -> CaptureResult:
         validated = self._validate_input(text)
@@ -82,6 +85,9 @@ class CaptureService:
             result.created.append(task)
             self._emit_event(task, correlation_id)
             self._record_dedup(user_id, original, task.task_id)
+
+        if result.created and self.on_task_captured is not None:
+            self.on_task_captured(user_id)
 
         return result
 

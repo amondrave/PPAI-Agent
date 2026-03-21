@@ -32,22 +32,33 @@
 - [x] Units Generation
 
 ### 🟢 CONSTRUCTION PHASE
-- [x] Functional Design (UOW-01 Capture Foundation)
+
+#### UOW-01 Capture Foundation — ⏸ PAUSADO (requiere AWS)
+- [x] Functional Design
 - [x] NFR Requirements
 - [x] NFR Design
 - [x] Infrastructure Design
 - [x] Code Planning
-- [ ] Code Generation ← EN PROGRESO
+- [~] Code Generation (Steps 1-14 ✅, Steps 15-16 + LocalStack ⏳)
 - [ ] Build and Test
+
+#### UOW-02 Decision Core — ✅ Code Generation COMPLETO
+- [x] Functional Design ✅ 2026-03-18
+- [x] NFR Requirements ✅ 2026-03-18
+- [x] NFR Design ✅ 2026-03-18
+- [x] Infrastructure Design ✅ 2026-03-18
+- [x] Code Planning ✅ 2026-03-21
+- [x] Code Generation ✅ 2026-03-21 (Steps 1–12, 168 tests passing)
+- [ ] Build and Test ← SIGUIENTE (LocalStack + prueba manual)
 
 ### 🟡 OPERATIONS PHASE
 - [ ] Operations (PLACEHOLDER)
 
 ## Current Status
 - **Lifecycle Phase**: CONSTRUCTION
-- **Current Stage**: Code Generation — UOW-01 Capture Foundation
-- **Last Session Date**: 2026-03-17
-- **Status**: Steps 1-14 completados (14/16). Pendiente Steps 15-16 + LocalStack setup.
+- **Current Stage**: Build and Test — UOW-01 + UOW-02
+- **Last Session Date**: 2026-03-21
+- **Status**: UOW-02 code generation completo (168 tests). Siguiente: LocalStack + docker-compose + prueba manual + Steps 15-16 de UOW-01 (GitHub Actions CI/CD).
 
 ## Code Generation Progress (UOW-01)
 

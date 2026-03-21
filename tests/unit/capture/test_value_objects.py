@@ -3,7 +3,7 @@ from ppai.capture.domain.value_objects import TaskStatus, ACTIVE_STATUSES
 
 class TestTaskStatus:
     def test_all_statuses_exist(self):
-        expected = {"captured", "pending", "prioritized", "nudged", "done", "snoozed", "clarifying"}
+        expected = {"captured", "pending", "prioritized", "nudged", "done", "snoozed", "clarifying", "needs_clarification"}
         actual = {s.value for s in TaskStatus}
         assert actual == expected
 
