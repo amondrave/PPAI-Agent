@@ -45,18 +45,20 @@ class DecisionService:
     # Public API
     # ------------------------------------------------------------------
 
-    def get_top3(self, user_id: str) -> Top3Result:
+    def get_top3(self, user_id: str, now: datetime | None = None) -> Top3Result:
         """Return the ranked Top 3 for *user_id*.
 
         Cache hit returns cached result.  On miss: queries DB, scores tasks,
         transitions statuses, updates the ExecutionCycle, and caches result.
+
+        *now* is injectable for deterministic testing; defaults to UTC wall clock.
         """
         cached = self._get_cached(user_id)
         if cached is not None:
             logger.info("top3.cache_hit", extra={"user_id": user_id})
             return cached
 
-        now = datetime.now(timezone.utc)
+        now = now or datetime.now(timezone.utc)
         today = now.date()
 
         # BR-DEC-01 — only pending tasks are eligible

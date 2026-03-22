@@ -165,8 +165,8 @@ class TestTop3CommandWithTasks:
         update = _fake_command_update()
         await adapter.top3_handler(update, MagicMock())
 
-        from datetime import date
-        today = date.today().isoformat()
+        from datetime import datetime, timezone
+        today = datetime.now(timezone.utc).date().isoformat()
         cycle = cycle_repo.get_active(USER_STR, today)
         assert cycle is not None
 
