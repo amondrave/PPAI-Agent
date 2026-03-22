@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     # LocalStack: set to http://localhost:4566 for local development, None for AWS prod
     dynamodb_endpoint_url: str | None = None
 
-    model_config = {"env_prefix": "", "case_sensitive": False, "env_file": ".env"}
+    model_config = {"env_prefix": "", "case_sensitive": False, "env_file": ".env", "extra": "ignore"}
 
 
 def get_settings() -> Settings:
