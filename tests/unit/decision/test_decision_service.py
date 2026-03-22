@@ -250,7 +250,7 @@ class TestCycleFallback:
         """DP-13: UOW-02 creates cycle in fallback mode."""
         tasks = [make_pending_task()]
         svc, _, cycle_repo = make_service(tasks)
-        svc.get_top3(USER)
+        svc.get_top3(USER, now=NOW)
         assert len(cycle_repo.saved) == 1
 
     def test_existing_cycle_not_duplicated(self):
@@ -258,7 +258,7 @@ class TestCycleFallback:
         existing = ExecutionCycle(user_id=USER, date=TODAY)
         tasks = [make_pending_task()]
         svc, _, cycle_repo = make_service(tasks, cycles=[existing])
-        svc.get_top3(USER)
+        svc.get_top3(USER, now=NOW)
         # No new cycle should be created
         assert len(cycle_repo.saved) == 0
 

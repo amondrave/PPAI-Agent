@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 def build_app() -> Application:
     settings = get_settings()
 
-    dynamodb = get_dynamodb_resource(settings.aws_region)
+    dynamodb = get_dynamodb_resource(settings.aws_region, settings.dynamodb_endpoint_url)
     task_table  = dynamodb.Table(table_name(settings.dynamodb_table_prefix, "tasks"))
     event_table = dynamodb.Table(table_name(settings.dynamodb_table_prefix, "events"))
     dedup_table = dynamodb.Table(table_name(settings.dynamodb_table_prefix, "dedup"))

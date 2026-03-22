@@ -11,6 +11,27 @@ Versionado: [Semantic Versioning](https://semver.org/)
 
 ---
 
+## [v0.4.0] — 2026-03-21
+
+### ✨ Added
+
+- Entorno de desarrollo local completo con LocalStack 3.4 via `docker-compose up -d` — permite probar captura y Top 3 sin cuenta AWS.
+- Script `scripts/create-local-tables.py` que crea las 4 tablas DynamoDB (`ppai-tasks`, `ppai-events`, `ppai-dedup`, `ppai-cycles`) con sus GSIs en LocalStack al iniciar.
+- Entry point `ppai/local.py` en modo polling para desarrollo local — sin necesidad de URL pública ni webhook.
+- Archivo `.env.example` documentado con todos los parámetros de configuración por ambiente (local vs prod).
+
+### ⚙️ Infra
+
+- Pipeline CI/CD completo en GitHub Actions (`.github/workflows/deploy.yml`) con 4 jobs: `test → build-push → terraform → deploy`. Solo despliega en push a `main`.
+- OIDC provider IAM + `ppai-github-deploy-role` en Terraform (`iam/github-oidc.tf`) — GitHub Actions asume el role sin credenciales de larga duración en Secrets.
+- Permisos mínimos para el deploy role: ECR, ECS, S3 (state), DynamoDB (lock), IAM, CloudWatch Logs.
+
+### 🐛 Fixed
+
+- Corregido error de arranque del bot al leer `.env` con variables `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` — pydantic-settings configurado con `extra="ignore"` para ignorar variables no declaradas en el modelo.
+
+---
+
 ## [v0.3.0] — 2026-03-21
 
 ### ✨ Added — UOW-02 Decision Core
@@ -88,7 +109,8 @@ Versionado: [Semantic Versioning](https://semver.org/)
 
 ---
 
-[Unreleased]: https://github.com/amondrave/PPAI-Agent/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/amondrave/PPAI-Agent/compare/v0.4.0...HEAD
+[v0.4.0]: https://github.com/amondrave/PPAI-Agent/compare/v0.3.0...v0.4.0
 [v0.3.0]: https://github.com/amondrave/PPAI-Agent/compare/v0.2.0...v0.3.0
 [v0.2.0]: https://github.com/amondrave/PPAI-Agent/compare/v0.1.0...v0.2.0
 [v0.1.0]: https://github.com/amondrave/PPAI-Agent/releases/tag/v0.1.0
