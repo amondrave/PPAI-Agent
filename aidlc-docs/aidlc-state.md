@@ -3,10 +3,10 @@
 ## Project Information
 - **Project Type**: Greenfield
 - **Start Date**: 2026-03-10T21:21:54Z
-- **Current Stage**: CONSTRUCTION - Code Generation In Progress (UOW-01)
+- **Current Stage**: CONSTRUCTION - Build and Test COMPLETO (UOW-01 + UOW-02)
 
 ## Workspace State
-- **Existing Code**: Yes (Steps 1-14 completados)
+- **Existing Code**: Yes (UOW-01 + UOW-02 completos, CI/CD verde)
 - **Reverse Engineering Needed**: No
 - **Workspace Root**: /Users/angelmondragon/Desktop/PPAI/ppai
 
@@ -33,128 +33,53 @@
 
 ### 🟢 CONSTRUCTION PHASE
 
-#### UOW-01 Capture Foundation — ⏸ PAUSADO (requiere AWS)
+#### UOW-01 Capture Foundation — ✅ COMPLETO
 - [x] Functional Design
 - [x] NFR Requirements
 - [x] NFR Design
 - [x] Infrastructure Design
 - [x] Code Planning
-- [~] Code Generation (Steps 1-14 ✅, Steps 15-16 + LocalStack ⏳)
-- [ ] Build and Test
+- [x] Code Generation ✅ (Steps 1–16 completos)
+- [x] Build and Test ✅ 2026-03-21 — LocalStack + CI verde + prueba manual Telegram OK
 
-#### UOW-02 Decision Core — ✅ Code Generation COMPLETO
+#### UOW-02 Decision Core — ✅ COMPLETO
 - [x] Functional Design ✅ 2026-03-18
 - [x] NFR Requirements ✅ 2026-03-18
 - [x] NFR Design ✅ 2026-03-18
 - [x] Infrastructure Design ✅ 2026-03-18
 - [x] Code Planning ✅ 2026-03-21
 - [x] Code Generation ✅ 2026-03-21 (Steps 1–12, 168 tests passing)
-- [ ] Build and Test ← SIGUIENTE (LocalStack + prueba manual)
+- [x] Build and Test ✅ 2026-03-21 — CI verde (168/168), prueba LocalStack OK
+
+#### UOW-03 — ⏳ PENDIENTE (esperando orden del usuario)
 
 ### 🟡 OPERATIONS PHASE
 - [ ] Operations (PLACEHOLDER)
 
 ## Current Status
 - **Lifecycle Phase**: CONSTRUCTION
-- **Current Stage**: Build and Test — UOW-01 + UOW-02
+- **Current Stage**: UOW-01 + UOW-02 completamente cerrados. PRs mergeados a main. CI/CD con OIDC operativo.
 - **Last Session Date**: 2026-03-21
-- **Status**: UOW-02 code generation completo (168 tests). Siguiente: LocalStack + docker-compose + prueba manual + Steps 15-16 de UOW-01 (GitHub Actions CI/CD).
+- **Next**: Analizar step 4 — deploy a prod (terraform apply + ECS) o arrancar UOW-03. Esperando orden del usuario.
 
-## Code Generation Progress (UOW-01)
+## Test Coverage (total acumulado)
+- **Total tests**: 168 passing (0 failing)
+- **UOW-01**: 75 tests (52 unit, 14 integration, 9 e2e)
+- **UOW-02**: 93 tests (65 unit, 14 integration, 14 e2e)
 
-| Step | Descripcion | Estado | Linear |
-|------|-------------|--------|--------|
-| Step 1 | Project Structure Setup | ✅ Done | PPA-6 |
-| Step 2 | Domain Layer — Entities & Value Objects | ✅ Done | PPA-7 |
-| Step 3 | Domain Layer — Unit Tests | ✅ Done | PPA-8 |
-| Step 4 | Application Layer — Ports | ✅ Done | PPA-9 |
-| Step 5 | Application Layer — Capture Service | ✅ Done | PPA-10 |
-| Step 6 | Application Layer — Unit Tests | ✅ Done | PPA-11 |
-| Step 7 | Infrastructure Layer — DynamoDB Repositories | ✅ Done | PPA-12 |
-| Step 8 | Infrastructure Layer — Integration Tests | ✅ Done | PPA-13 |
-| Step 9 | Infrastructure Layer — Telegram Adapter + Rate Limiter | ✅ Done | PPA-14 |
-| Step 10 | Infrastructure Layer — Structured Logging | ✅ Done | PPA-15 |
-| Step 11 | Application Entry Point — main.py | ✅ Done | PPA-16 |
-| Step 12 | E2E Tests — Telegram Flow | ✅ Done | PPA-17 |
-| Step 13 | Dockerfile + Container Config | ✅ Done | PPA-18 |
-| Step 14 | Terraform Infrastructure | ✅ Done | PPA-19 |
-| Step 15 | GitHub Actions Workflow | ⏳ Pendiente | PPA-20 |
-| Step 16 | Documentation Summaries | ⏳ Pendiente | PPA-21 |
-| Extra | LocalStack + docker-compose + ppai/local.py | ⏳ Pendiente | — |
+## CI/CD Pipeline (operativo)
+- **Branch**: main
+- **Jobs**: test → build-push (ECR) → terraform apply → ECS deploy
+- **Auth**: OIDC (sin credenciales de larga duración en Secrets)
+- **Secrets requeridos en GitHub**: `AWS_DEPLOY_ROLE_ARN`, `TELEGRAM_BOT_TOKEN`
 
-## Test Coverage
-- **Total tests**: 75 passing (0 failing)
-- **Unit tests**: 52 (domain + service)
-- **Integration tests**: 14 (DynamoDB repos con moto)
-- **E2E tests**: 9 (flujo completo Telegram simulado)
-
-## Archivos Generados (Code Generation)
-
-### Application Code
-```
-ppai/
-├── __init__.py
-├── main.py                                    ← Entry point (webhook)
-├── capture/
-│   ├── domain/
-│   │   ├── entities.py                        ← Intent, TaskState, CaptureEvent, DedupRecord
-│   │   ├── value_objects.py                   ← TaskStatus enum, ACTIVE_STATUSES
-│   │   └── exceptions.py                      ← CaptureError hierarchy
-│   ├── application/
-│   │   ├── ports.py                           ← Protocols: TaskStateRepo, EventRepo, DedupRepo
-│   │   └── capture_service.py                 ← CaptureService (BR-CAP-01..10)
-│   └── infrastructure/
-│       ├── telegram_adapter.py                ← Webhook handler + error handler
-│       ├── dynamodb_task_repo.py              ← DynamoDB: ppai-tasks
-│       ├── dynamodb_event_repo.py             ← DynamoDB: ppai-events
-│       └── dynamodb_dedup_repo.py             ← DynamoDB: ppai-dedup (TTL)
-└── shared/
-    ├── domain/
-    │   └── base_entity.py                     ← generate_id() UUID factory
-    └── infrastructure/
-        ├── config.py                          ← pydantic-settings (env vars)
-        ├── dynamodb_client.py                 ← boto3 factory
-        ├── rate_limiter.py                    ← InMemoryRateLimiter sliding window
-        └── logging.py                         ← structlog JSON config
-
-tests/
-├── conftest.py                                ← moto DynamoDB fixtures (3 tablas)
-├── unit/capture/
-│   ├── test_entities.py                       ← 9 tests
-│   ├── test_value_objects.py                  ← 5 tests
-│   └── test_capture_service.py               ← 38 tests (todas las BRs)
-├── integration/capture/
-│   └── test_dynamodb_repos.py                 ← 14 tests (moto)
-└── e2e/
-    └── test_telegram_flow.py                  ← 9 tests (flujo completo)
-```
-
-### Infrastructure
-```
-terraform/
-├── main.tf, providers.tf, variables.tf, outputs.tf
-└── modules/
-    ├── networking/     ← VPC, subnets, NAT, VPC endpoints, SGs
-    ├── api-gateway/    ← HTTP API, VPC Link, route, access logs
-    ├── ecs/            ← Cluster, task def, service (desiredCount=1)
-    ├── dynamodb/       ← 3 tablas + GSI + TTL + deletion protection
-    ├── iam/            ← Task execution role + task role (least privilege)
-    ├── ecr/            ← Repository + scanning + lifecycle
-    └── monitoring/     ← CloudWatch log groups (90 days)
-```
-
-### Docs
-```
-docs/
-└── setup-guide.md     ← Guia completa: Telegram setup, LocalStack, AWS deploy
-```
-
-## Proximos Pasos (siguiente sesion)
-
-1. **LocalStack setup** — `docker-compose.yml` + `scripts/create-local-tables.py` + `ppai/local.py` (polling mode) + `.env.example`
-2. **Step 15** — GitHub Actions: build, test, push ECR
-3. **Step 16** — Documentation summary
-4. **Prueba manual** — Levantar LocalStack + bot polling + probar desde Telegram real
+## Fixes aplicados en Build and Test
+| Fix | Descripción |
+|-----|-------------|
+| `config.py extra="ignore"` | pydantic-settings rechazaba `AWS_*` vars del `.env` |
+| `requirements-dev.txt` | pytest/moto/pytest-asyncio faltaban en CI |
+| `get_top3(now=)` inyectable | tests de ciclos fallaban por desface UTC vs local |
+| `datetime.now(timezone.utc)` en e2e | `date.today()` usaba timezone local, ciclo usa UTC |
 
 ## Decisiones Tecnicas Relevantes
 
@@ -164,4 +89,12 @@ docs/
 | pyenv local 3.12.4 | Python 3.12 requerido (StrEnum), pyenv configurado |
 | .venv en raiz del proyecto | Entorno aislado, ya en .gitignore |
 | run_polling para local | Webhook requiere URL publica, polling es suficiente para dev |
-| LocalStack pendiente | Necesario para prueba manual sin cuenta AWS |
+| LocalStack 3.4 via docker-compose | Prueba local completa sin cuenta AWS |
+| OIDC para GitHub Actions | Sin credenciales de larga duración en Secrets |
+| `extra="ignore"` en pydantic-settings | AWS_* vars en .env no declaradas en Settings |
+| `now` inyectable en get_top3 | Determinismo en tests sin depender del reloj del sistema |
+
+## Proximos Pasos (siguiente sesion)
+
+1. **Step 4 (deploy prod)** — terraform apply + copiar `github_deploy_role_arn` → GitHub Secrets → push main activa el pipeline completo
+2. **UOW-03** — siguiente unidad de trabajo (pendiente definir)
