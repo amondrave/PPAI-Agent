@@ -20,7 +20,6 @@ module "iam" {
   cycles_table_arn    = module.dynamodb.cycles_table_arn
   ecr_repository_arn  = module.ecr.repository_arn
   log_group_bot_arn   = module.monitoring.log_group_bot_arn
-  log_group_apigw_arn = module.monitoring.log_group_apigw_arn
 }
 
 module "monitoring" {

@@ -82,7 +82,6 @@ jobs:
         run: |
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          # Also tag as latest
           docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
 
@@ -95,6 +94,8 @@ jobs:
     needs: build-push
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment: prod
+    env:
+      TF_VAR_telegram_bot_token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
 
     steps:
       - name: Checkout
@@ -118,17 +119,19 @@ jobs:
       - name: Terraform Import pre-existing resources
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: |
-          # Idempotent — skip silently if already in state or resource doesn't exist
+          # Import resources created manually before first terraform apply.
+          # Each import is idempotent: succeeds if not yet in state, skips if already imported.
           ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+
           terraform import module.ecr.aws_ecr_repository.bot ppai-bot 2>/dev/null || true
           terraform import "module.iam.aws_iam_openid_connect_provider.github" \
             "arn:aws:iam::${ACCOUNT_ID}:oidc-provider/token.actions.githubusercontent.com" 2>/dev/null || true
-          terraform import "module.iam.aws_iam_role.github_deploy" "ppai-github-deploy" 2>/dev/null || true
+          terraform import "module.iam.aws_iam_role.github_deploy" \
+            "ppai-github-deploy" 2>/dev/null || true
 
       - name: Terraform Plan
         working-directory: ${{ env.TF_WORKING_DIR }}
         env:
-          TF_VAR_telegram_bot_token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TF_VAR_image_tag: ${{ needs.build-push.outputs.image-tag }}
         run: terraform plan -out=tfplan
 
@@ -137,14 +140,13 @@ jobs:
         run: terraform apply tfplan
 
   # ---------------------------------------------------------------------------
-  # JOB 4: ECS Deploy — force new deployment, solo en push a main
+  # JOB 4: Verify — wait for ECS stabilization + health check
   # ---------------------------------------------------------------------------
-  deploy:
-    name: Deploy to ECS
+  verify:
+    name: Verify Deployment
     runs-on: ubuntu-latest
     needs: terraform
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    environment: prod
 
     steps:
       - name: Configure AWS credentials via OIDC
@@ -153,20 +155,13 @@ jobs:
           role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Force new ECS deployment
+      - name: Wait for ECS service to stabilize
         run: |
-          aws ecs update-service \
-            --cluster ${{ env.ECS_CLUSTER }} \
-            --service ${{ env.ECS_SERVICE }} \
-            --force-new-deployment \
-            --output json | jq '.service.deployments[0] | {status, runningCount, desiredCount}'
-
-      - name: Wait for deployment to stabilize
-        run: |
+          echo "Waiting for ECS deployment to stabilize..."
           aws ecs wait services-stable \
             --cluster ${{ env.ECS_CLUSTER }} \
             --services ${{ env.ECS_SERVICE }}
-          echo "✅ ECS service stable"
+          echo "ECS service stable"
 
       - name: Health check — verify running task count
         run: |
@@ -176,4 +171,4 @@ jobs:
             --query 'services[0].runningCount' \
             --output text)
           echo "Running tasks: $RUNNING"
-          [ "$RUNNING" -ge 1 ] || (echo "❌ No tasks running" && exit 1)
+          [ "$RUNNING" -ge 1 ] || (echo "No tasks running" && exit 1)

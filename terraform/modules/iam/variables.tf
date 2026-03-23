@@ -34,7 +34,3 @@ variable "log_group_bot_arn" {
   type        = string
 }
 
-variable "log_group_apigw_arn" {
-  description = "ARN of the API Gateway CloudWatch log group"
-  type        = string
-}

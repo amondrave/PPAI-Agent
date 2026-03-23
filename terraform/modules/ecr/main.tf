@@ -1,6 +1,6 @@
 resource "aws_ecr_repository" "bot" {
   name                 = "ppai-bot"
-  image_tag_mutability = "IMMUTABLE"
+  image_tag_mutability = "MUTABLE"
 
   image_scanning_configuration {
     scan_on_push = true
@@ -31,10 +31,9 @@ resource "aws_ecr_lifecycle_policy" "bot" {
       },
       {
         rulePriority = 2
-        description  = "Keep last 10 tagged images"
+        description  = "Keep last 10 tagged images (SHA + latest)"
         selection = {
-          tagStatus   = "tagged"
-          tagPatternList = ["v*"]
+          tagStatus   = "any"
           countType   = "imageCountMoreThan"
           countNumber = 10
         }

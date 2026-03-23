@@ -6,7 +6,7 @@ resource "aws_vpc" "main" {
   tags = { Name = "ppai-vpc" }
 }
 
-# -- Public subnets (NAT Gateway) ---
+# -- Public subnets (ECS Fargate) ---
 
 resource "aws_subnet" "public_a" {
   vpc_id                  = aws_vpc.main.id
@@ -109,7 +109,7 @@ resource "aws_security_group" "ecs" {
   vpc_id      = aws_vpc.main.id
 
   egress {
-    description = "HTTPS outbound (Telegram API via NAT + DynamoDB via endpoint)"
+    description = "HTTPS outbound (Telegram API + DynamoDB via endpoint)"
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"

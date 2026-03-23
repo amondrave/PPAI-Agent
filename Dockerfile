@@ -12,9 +12,4 @@ COPY ppai/ ppai/
 RUN chown -R ppai:ppai /app
 USER ppai
 
-EXPOSE 8443
-
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD python -c "import socket; s=socket.create_connection(('localhost',8443),timeout=3); s.close()" || exit 1
-
 CMD ["python", "-m", "ppai.main"]
