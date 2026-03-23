@@ -13,8 +13,8 @@ variable "task_role_arn" {
   type        = string
 }
 
-variable "private_subnet_ids" {
-  description = "List of private subnet IDs"
+variable "subnet_ids" {
+  description = "List of subnet IDs for ECS tasks (public for polling mode)"
   type        = list(string)
 }
 

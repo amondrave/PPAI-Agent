@@ -115,6 +115,16 @@ jobs:
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: terraform init
 
+      - name: Terraform Import pre-existing resources
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          # Idempotent — skip silently if already in state or resource doesn't exist
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          terraform import module.ecr.aws_ecr_repository.bot ppai-bot 2>/dev/null || true
+          terraform import "module.iam.aws_iam_openid_connect_provider.github" \
+            "arn:aws:iam::${ACCOUNT_ID}:oidc-provider/token.actions.githubusercontent.com" 2>/dev/null || true
+          terraform import "module.iam.aws_iam_role.github_deploy" "ppai-github-deploy" 2>/dev/null || true
+
       - name: Terraform Plan
         working-directory: ${{ env.TF_WORKING_DIR }}
         env:

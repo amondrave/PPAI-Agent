@@ -23,11 +23,6 @@ resource "aws_ecs_task_definition" "bot" {
     image     = var.image_uri
     essential = true
 
-    portMappings = [{
-      containerPort = 8443
-      protocol      = "tcp"
-    }]
-
     environment = [
       { name = "TELEGRAM_BOT_TOKEN", value = var.telegram_bot_token },
       { name = "DYNAMODB_TABLE_PREFIX", value = var.table_prefix },
@@ -46,13 +41,6 @@ resource "aws_ecs_task_definition" "bot" {
       }
     }
 
-    healthCheck = {
-      command     = ["CMD-SHELL", "python -c \"import socket; s=socket.create_connection(('localhost',8443),timeout=3); s.close()\""]
-      interval    = 30
-      timeout     = 5
-      retries     = 3
-      startPeriod = 10
-    }
   }])
 }
 
@@ -64,9 +52,9 @@ resource "aws_ecs_service" "bot" {
   launch_type     = "FARGATE"
 
   network_configuration {
-    subnets          = var.private_subnet_ids
+    subnets          = var.subnet_ids
     security_groups  = [var.ecs_security_group_id]
-    assign_public_ip = false
+    assign_public_ip = true
   }
 
   deployment_circuit_breaker {

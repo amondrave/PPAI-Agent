@@ -51,21 +51,6 @@ resource "aws_internet_gateway" "main" {
   tags   = { Name = "ppai-igw" }
 }
 
-# -- NAT Gateway (single for MVP) ---
-
-resource "aws_eip" "nat" {
-  domain = "vpc"
-  tags   = { Name = "ppai-nat-eip" }
-}
-
-resource "aws_nat_gateway" "main" {
-  allocation_id = aws_eip.nat.id
-  subnet_id     = aws_subnet.public_a.id
-
-  tags = { Name = "ppai-nat" }
-
-  depends_on = [aws_internet_gateway.main]
-}
 
 # -- Route tables ---
 
@@ -95,12 +80,6 @@ resource "aws_route_table" "private" {
   tags   = { Name = "ppai-private-rt" }
 }
 
-resource "aws_route" "private_nat" {
-  route_table_id         = aws_route_table.private.id
-  destination_cidr_block = "0.0.0.0/0"
-  nat_gateway_id         = aws_nat_gateway.main.id
-}
-
 resource "aws_route_table_association" "private_a" {
   subnet_id      = aws_subnet.private_a.id
   route_table_id = aws_route_table.private.id
@@ -111,13 +90,13 @@ resource "aws_route_table_association" "private_b" {
   route_table_id = aws_route_table.private.id
 }
 
-# -- VPC Endpoint for DynamoDB ---
+# -- VPC Endpoint for DynamoDB (public subnet — ECS in public subnet uses public RT) ---
 
 resource "aws_vpc_endpoint" "dynamodb" {
   vpc_id            = aws_vpc.main.id
   service_name      = "com.amazonaws.${data.aws_region.current.name}.dynamodb"
   vpc_endpoint_type = "Gateway"
-  route_table_ids   = [aws_route_table.private.id]
+  route_table_ids   = [aws_route_table.public.id]
 
   tags = { Name = "ppai-dynamodb-endpoint" }
 }
@@ -128,14 +107,6 @@ resource "aws_security_group" "ecs" {
   name_prefix = "ppai-ecs-"
   description = "ECS Fargate tasks"
   vpc_id      = aws_vpc.main.id
-
-  ingress {
-    description = "Webhook from VPC Link"
-    from_port   = 8443
-    to_port     = 8443
-    protocol    = "tcp"
-    cidr_blocks = [var.vpc_cidr]
-  }
 
   egress {
     description = "HTTPS outbound (Telegram API via NAT + DynamoDB via endpoint)"

@@ -1,8 +1,3 @@
-output "api_gateway_url" {
-  description = "API Gateway webhook URL for Telegram"
-  value       = module.api_gateway.webhook_url
-}
-
 output "ecr_repository_url" {
   description = "ECR repository URL for Docker images"
   value       = module.ecr.repository_url

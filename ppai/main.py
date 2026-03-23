@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import logging
 
-from telegram import Update
 from telegram.ext import Application, CallbackQueryHandler, CommandHandler, MessageHandler, filters
+from telegram import Update
 
 from ppai.capture.application.capture_service import CaptureService
 from ppai.capture.infrastructure.dynamodb_dedup_repo import DynamoDBDedupRepository
@@ -87,17 +87,10 @@ def build_app() -> Application:
 
 def main() -> None:
     setup_logging()
-    logger.info("Starting PPAI bot...")
+    logger.info("Starting PPAI bot in polling mode...")
 
-    settings = get_settings()
     application = build_app()
-
-    application.run_webhook(
-        listen="0.0.0.0",
-        port=8443,
-        webhook_url=f"https://placeholder.execute-api.{settings.aws_region}.amazonaws.com/webhook",
-        allowed_updates=Update.ALL_TYPES,
-    )
+    application.run_polling(drop_pending_updates=True, allowed_updates=Update.ALL_TYPES)
 
 
 if __name__ == "__main__":

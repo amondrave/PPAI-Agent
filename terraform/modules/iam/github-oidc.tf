@@ -15,7 +15,7 @@ resource "aws_iam_openid_connect_provider" "github" {
 
 # IAM Role que GitHub Actions asume via OIDC
 resource "aws_iam_role" "github_deploy" {
-  name = "ppai-github-deploy-role"
+  name = "ppai-github-deploy"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
