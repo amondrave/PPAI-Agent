@@ -51,16 +51,23 @@
 - [x] Code Generation ✅ 2026-03-21 (Steps 1–12, 168 tests passing)
 - [x] Build and Test ✅ 2026-03-21 — CI verde (168/168), prueba LocalStack OK
 
-#### UOW-03 — ⏳ PENDIENTE (esperando orden del usuario)
+#### UOW-03 Push & Scheduling — 🔄 EN PROGRESO
+- [x] Functional Design ✅ 2026-03-23
+- [x] NFR Requirements ✅ 2026-03-23
+- [x] NFR Design ✅ 2026-03-23
+- [ ] Infrastructure Design
+- [ ] Code Planning
+- [ ] Code Generation
+- [ ] Build and Test
 
 ### 🟡 OPERATIONS PHASE
 - [ ] Operations (PLACEHOLDER)
 
 ## Current Status
 - **Lifecycle Phase**: CONSTRUCTION
-- **Current Stage**: UOW-01 + UOW-02 completamente cerrados. PRs mergeados a main. CI/CD con OIDC operativo.
-- **Last Session Date**: 2026-03-21
-- **Next**: Analizar step 4 — deploy a prod (terraform apply + ECS) o arrancar UOW-03. Esperando orden del usuario.
+- **Current Stage**: UOW-03 Push & Scheduling pausado tras Design aprobado (Functional + NFR Requirements + NFR Design). UOW-01 y UOW-02 permanecen cerrados en main con CI/CD operativo.
+- **Last Session Date**: 2026-03-23
+- **Next**: Continuar con Infrastructure Design de UOW-03 cuando el usuario lo indique.
 
 ## Test Coverage (total acumulado)
 - **Total tests**: 168 passing (0 failing)
@@ -97,4 +104,4 @@
 ## Proximos Pasos (siguiente sesion)
 
 1. **Step 4 (deploy prod)** — terraform apply + copiar `github_deploy_role_arn` → GitHub Secrets → push main activa el pipeline completo
-2. **UOW-03** — siguiente unidad de trabajo (pendiente definir)
+2. **UOW-03** — retomar desde Infrastructure Design

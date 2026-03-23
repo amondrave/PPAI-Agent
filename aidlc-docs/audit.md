@@ -261,6 +261,154 @@
 
 ---
 
+## UOW-03 Start
+**Timestamp**: 2026-03-23T13:00:00Z
+**Stage**: CONSTRUCTION - UOW-03 Functional Design
+**Event**: User requested to start UOW-03. Session resumed from repository artifacts instead of chat-only context.
+**Artifacts Prepared**:
+- `aidlc-docs/construction/plans/push-scheduling-functional-design-plan.md`
+- Updated `aidlc-docs/aidlc-state.md`
+
+**Raw User Input**:
+"Dale arrancamos con UOW-03"
+
+---
+
+## UOW-03 Functional Design - Answers Logged
+**Timestamp**: 2026-03-23T13:15:00Z
+**Stage**: CONSTRUCTION - UOW-03 Functional Design
+**Raw User Input**:
+"Listo"
+**Answer Source**: `aidlc-docs/construction/plans/push-scheduling-functional-design-plan.md`
+**Answer Analysis**:
+- All questions completed
+- No blocking contradictions detected
+- Q7 interpreted as: baseline `maxNudgesPerDay = 3` with future per-user override via `/config`
+- Ready to generate functional design artifacts
+
+---
+
+## UOW-03 Functional Design - Artifacts Generated
+**Timestamp**: 2026-03-23T13:20:00Z
+**Stage**: CONSTRUCTION - UOW-03 Functional Design
+**Artifacts**:
+- `aidlc-docs/construction/push-scheduling/functional-design/business-logic-model.md`
+- `aidlc-docs/construction/push-scheduling/functional-design/business-rules.md`
+- `aidlc-docs/construction/push-scheduling/functional-design/domain-entities.md`
+- Updated `aidlc-docs/construction/plans/push-scheduling-functional-design-plan.md`
+
+## UOW-03 Functional Design - Approval Prompt
+**Timestamp**: 2026-03-23T13:20:00Z
+**AI Prompt**: "Please review UOW-03 functional design artifacts and approve to continue to NFR Requirements."
+**Status**: Pending user approval
+
+---
+
+## UOW-03 Functional Design - User Approval
+**Timestamp**: 2026-03-23T13:25:00Z
+**Stage**: CONSTRUCTION - UOW-03 Functional Design
+**User Response**: "Apruebo"
+**Status**: Approved
+
+---
+
+## UOW-03 NFR Requirements - Plan Created
+**Timestamp**: 2026-03-23T13:30:00Z
+**Stage**: CONSTRUCTION - UOW-03 NFR Requirements
+**Event**: Generated delta NFR questions for scheduler, dispatch persistence, reliability, security and observability.
+**Artifacts**:
+- `aidlc-docs/construction/plans/push-scheduling-nfr-requirements-plan.md`
+
+---
+
+## UOW-03 NFR Requirements - Answers Logged
+**Timestamp**: 2026-03-23T13:40:00Z
+**Stage**: CONSTRUCTION - UOW-03 NFR Requirements
+**Raw User Input**:
+"Listo contestadas "
+**Answer Source**: `aidlc-docs/construction/plans/push-scheduling-nfr-requirements-plan.md`
+**Answer Analysis**:
+- All questions completed
+- No blocking contradictions detected
+- Clear preference for lean in-process scheduler architecture
+- Ready to generate NFR artifacts
+
+---
+
+## UOW-03 NFR Requirements - Artifacts Generated
+**Timestamp**: 2026-03-23T13:45:00Z
+**Stage**: CONSTRUCTION - UOW-03 NFR Requirements
+**Artifacts**:
+- `aidlc-docs/construction/push-scheduling/nfr-requirements/nfr-requirements.md`
+- `aidlc-docs/construction/push-scheduling/nfr-requirements/tech-stack-decisions.md`
+- Updated `aidlc-docs/construction/plans/push-scheduling-nfr-requirements-plan.md`
+
+## UOW-03 NFR Requirements - Approval Prompt
+**Timestamp**: 2026-03-23T13:45:00Z
+**AI Prompt**: "Please review UOW-03 NFR requirements artifacts and approve to continue to NFR Design."
+**Status**: Pending user approval
+
+---
+
+## UOW-03 NFR Requirements - User Approval
+**Timestamp**: 2026-03-23T13:50:00Z
+**Stage**: CONSTRUCTION - UOW-03 NFR Requirements
+**User Response**: "apruebo"
+**Status**: Approved
+
+---
+
+## UOW-03 NFR Design - Plan Created
+**Timestamp**: 2026-03-23T13:55:00Z
+**Stage**: CONSTRUCTION - UOW-03 NFR Design
+**Event**: Generated delta NFR design questions for scheduler patterns, duplicate protection, timezone handling, retries and callback security placement.
+**Artifacts**:
+- `aidlc-docs/construction/plans/push-scheduling-nfr-design-plan.md`
+
+---
+
+## UOW-03 NFR Design - Answers Logged
+**Timestamp**: 2026-03-23T14:05:00Z
+**Stage**: CONSTRUCTION - UOW-03 NFR Design
+**Raw User Input**:
+"Listo , contestadas "
+**Answer Source**: `aidlc-docs/construction/plans/push-scheduling-nfr-design-plan.md`
+**Answer Analysis**:
+- All questions completed
+- No blocking contradictions detected
+- Design preference remains intentionally lean and centralized
+- Ready to generate NFR design artifacts
+
+---
+
+## UOW-03 NFR Design - Artifacts Generated
+**Timestamp**: 2026-03-23T14:10:00Z
+**Stage**: CONSTRUCTION - UOW-03 NFR Design
+**Artifacts**:
+- `aidlc-docs/construction/push-scheduling/nfr-design/nfr-design-patterns.md`
+- `aidlc-docs/construction/push-scheduling/nfr-design/logical-components.md`
+- Updated `aidlc-docs/construction/plans/push-scheduling-nfr-design-plan.md`
+
+## UOW-03 NFR Design - Approval Prompt
+**Timestamp**: 2026-03-23T14:10:00Z
+**AI Prompt**: "Please review UOW-03 NFR design artifacts and approve to continue to Infrastructure Design."
+**Status**: Pending user approval
+
+---
+
+## UOW-03 NFR Design - User Approval
+**Timestamp**: 2026-03-23T14:20:00Z
+**Stage**: CONSTRUCTION - UOW-03 NFR Design
+**User Response**: "Apruebo pero dejemos ahi marca el ai-dlc"
+**Status**: Approved
+
+## UOW-03 Pause Marker
+**Timestamp**: 2026-03-23T14:20:00Z
+**Stage**: CONSTRUCTION - UOW-03
+**Event**: Workflow paused by user after approving NFR Design. Next stage is Infrastructure Design.
+
+---
+
 ## CONSTRUCTION PHASE - Functional Design Start (UOW-01)
 **Timestamp**: 2026-03-11T00:00:01Z
 **Stage**: CONSTRUCTION - Functional Design (UOW-01 Capture Foundation)
