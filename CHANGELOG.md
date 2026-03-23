@@ -11,6 +11,27 @@ Versionado: [Semantic Versioning](https://semver.org/)
 
 ---
 
+## [v0.5.0] — 2026-03-23
+
+### ⚙️ Infra
+
+- Creado bucket S3 `ppai-terraform-state` con versioning y cifrado AES-256 como backend remoto de Terraform para estado compartido y auditable.
+- Creada tabla DynamoDB `ppai-terraform-lock` (PAY_PER_REQUEST) para locking del estado de Terraform y evitar applies concurrentes.
+- Configurado OIDC Identity Provider de GitHub Actions en IAM — permite que el pipeline asuma roles AWS sin credenciales de larga duración en Secrets.
+- Creado rol IAM `ppai-github-deploy` con trust policy restringida al repositorio `amondrave/PPAI-Agent` para deploy desde GitHub Actions.
+- Configurados GitHub Secrets `AWS_DEPLOY_ROLE_ARN` y `TELEGRAM_BOT_TOKEN` en el repositorio — pipeline CI/CD listo para activarse en el próximo push a `main`.
+
+### 🐛 Fixed
+
+- Corregido error en tests de ciclos que fallaban por desface de timezone: `get_top3` ahora acepta parámetro `now` inyectable con `datetime.now(timezone.utc)`.
+- Corregido pipeline CI que fallaba por ausencia de dependencias de testing: agregado `requirements-dev.txt` con `pytest`, `moto`, `pytest-asyncio`.
+
+### 📝 Docs
+
+- Auditado y cerrado estado AI-DLC: UOW-01 y UOW-02 Build and Test marcados como COMPLETO con evidencia de CI verde y prueba manual Telegram OK.
+
+---
+
 ## [v0.4.0] — 2026-03-21
 
 ### ✨ Added
@@ -109,7 +130,8 @@ Versionado: [Semantic Versioning](https://semver.org/)
 
 ---
 
-[Unreleased]: https://github.com/amondrave/PPAI-Agent/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/amondrave/PPAI-Agent/compare/v0.5.0...HEAD
+[v0.5.0]: https://github.com/amondrave/PPAI-Agent/compare/v0.4.0...v0.5.0
 [v0.4.0]: https://github.com/amondrave/PPAI-Agent/compare/v0.3.0...v0.4.0
 [v0.3.0]: https://github.com/amondrave/PPAI-Agent/compare/v0.2.0...v0.3.0
 [v0.2.0]: https://github.com/amondrave/PPAI-Agent/compare/v0.1.0...v0.2.0
