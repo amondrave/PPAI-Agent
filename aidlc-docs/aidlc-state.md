@@ -51,23 +51,23 @@
 - [x] Code Generation ✅ 2026-03-21 (Steps 1–12, 168 tests passing)
 - [x] Build and Test ✅ 2026-03-21 — CI verde (168/168), prueba LocalStack OK
 
-#### UOW-03 Push & Scheduling — 🔄 EN PROGRESO
+#### UOW-03 Push & Scheduling — ✅ COMPLETO
 - [x] Functional Design ✅ 2026-03-23
 - [x] NFR Requirements ✅ 2026-03-23
 - [x] NFR Design ✅ 2026-03-23
 - [x] Infrastructure Design ✅ 2026-03-25
 - [x] Code Planning ✅ 2026-03-25
-- [x] Code Generation ✅ 2026-03-25 (Steps 1–16, 83 tests passing UOW-03)
-- [ ] Build and Test 🔄 EN PROGRESO (BDD tests implementados, 262 passing)
+- [x] Code Generation ✅ 2026-03-25 (Steps 1–16, 94 tests UOW-03)
+- [x] Build and Test ✅ 2026-03-25 — 262/262 tests, LocalStack OK, prueba manual Telegram OK, PR #6 mergeado, deploy prod en curso
 
 ### 🟡 OPERATIONS PHASE
 - [ ] Operations (PLACEHOLDER)
 
 ## Current Status
-- **Lifecycle Phase**: CONSTRUCTION
-- **Current Stage**: UOW-03 Push & Scheduling — Build and Test en progreso. BDD acceptance tests implementados (262 passing, 0 failing).
+- **Lifecycle Phase**: CONSTRUCTION → OPERATIONS
+- **Current Stage**: UOW-03 COMPLETO. Deploy prod en curso (PR #6 mergeado → pipeline CI/CD activo).
 - **Last Session Date**: 2026-03-25
-- **Next**: Build and Test de UOW-03 — continuar con: LocalStack (ppai-preferences table), docker-compose up, prueba manual Telegram, CI verde en rama, PR → merge → deploy prod.
+- **Next**: 1) Confirmar deploy prod exitoso + prod-snapshot. 2) Iniciar OPERATIONS phase.
 
 ## Test Coverage (total acumulado)
 - **Total tests**: 262 passing (0 failing)
@@ -104,5 +104,6 @@
 
 ## Proximos Pasos (siguiente sesion)
 
-1. **Step 4 (deploy prod)** — terraform apply + copiar `github_deploy_role_arn` → GitHub Secrets → push main activa el pipeline completo
-2. **UOW-03** — retomar desde Infrastructure Design
+1. **Confirmar deploy prod** — verificar ECS task estable con UOW-03 activo (nudge scheduler corriendo)
+2. **prod-snapshot** — ejecutar skill para documentar estado AWS actualizado
+3. **OPERATIONS phase** — iniciar según AI-DLC workflow

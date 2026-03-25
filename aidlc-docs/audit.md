@@ -1,5 +1,20 @@
 # AI-DLC Audit Log
 
+## UOW-03 Build and Test — COMPLETO
+**Timestamp**: 2026-03-25T20:25:00Z
+**Stage**: CONSTRUCTION - Build and Test (UOW-03 Push & Scheduling)
+**Event**: Build and Test completado exitosamente.
+**Evidencia**:
+- 262/262 tests passing (0 failing) — unit + integration + e2e + 11 BDD acceptance
+- 14/14 integration tests contra LocalStack con tabla ppai-preferences creada
+- Prueba manual Telegram OK: scheduler started, /top3 respondió, nudge enviado (sendMessage 200)
+- CI verde en rama feature/uow-03-push-scheduling
+- PR #6 mergeado → pipeline CI/CD en main activo → deploy prod ECS Fargate en curso
+- CHANGELOG v0.6.0 generado
+**Status**: UOW-03 COMPLETO. Todas las fases de CONSTRUCTION completadas (UOW-01 + UOW-02 + UOW-03).
+
+---
+
 ## UOW-03 Code Planning — Aprobación
 **Timestamp**: 2026-03-25T12:05:00Z
 **Stage**: CONSTRUCTION - Code Planning (UOW-03) — Aprobación recibida
