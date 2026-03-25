@@ -11,6 +11,34 @@ Versionado: [Semantic Versioning](https://semver.org/)
 
 ---
 
+## [v0.6.0] — 2026-03-25
+
+### ✨ Added — UOW-03 Push & Scheduling
+
+- Implementado scheduler in-process (`NudgeScheduler`) que cada 15 minutos evalúa usuarios activos y envía nudges proactivos por Telegram con botones inline `[✓ Hecho] [⏸ Posponer] [? Aclarar]`.
+- Implementado `NudgeService` con 6 guards de negocio: ventana de silencio configurable (silenceStart/silenceEnd), cap diario de nudges (`maxNudgesPerDay`), re-engagement tras 24h de inactividad, retry hasta 3 intentos con back-off, mensaje de tone positivo sin frases prohibidas y validación de autorización de callback.
+- Agregada entidad `UserNudgePreferences` con timezone, silenceStart/silenceEnd y maxNudgesPerDay — persistida en nueva tabla DynamoDB `ppai-preferences`.
+- Implementado `DynamoDBPreferencesRepository` (PK: `userId`) para persistir y recuperar preferencias de nudge por usuario.
+- Implementado `DynamoDBCycleEventRepository` que extiende la tabla `ppai-cycles` para registrar eventos de nudge: `nudge.scheduled`, `nudge.sent`, `nudge.failed` — con conteo diario de nudges enviados.
+- Implementado `TelegramPushAdapter` que construye y envía mensajes de nudge via `sendMessage` con teclado inline de 3 botones por tarea, y valida que el callback pertenezca al usuario correcto.
+- Wiring completo en `main.py`: `NudgeService` + `NudgeScheduler` conectados con todos los repositorios y el servicio de decisión.
+- 94 tests nuevos: 71 unitarios (domain, nudge_service, nudge_scheduler, telegram_push_adapter), 14 de integración contra LocalStack, 9 e2e.
+- 11 tests de aceptación BDD (Gherkin) para US-05 y US-06 en `tests/unit/e3/`.
+
+### ⚙️ Infra
+
+- Agregada tabla DynamoDB `ppai-preferences` en Terraform con PK `userId`, cifrado en reposo, deletion protection y tag `Unit: uow-03`.
+- Extendido IAM Task Role con permisos `GetItem`, `PutItem` sobre `ppai-preferences` (least privilege).
+- Actualizado `terraform/main.tf` con wiring de `preferences_table_arn` al módulo IAM.
+- Agregada tabla `ppai-preferences` al script `scripts/create-local-tables.py` para LocalStack.
+
+### 📝 Docs
+
+- Actualizado `aidlc-state.md`: UOW-03 Build and Test en progreso, 262 tests passing.
+- Generados artefactos AI-DLC: infrastructure design, deployment architecture y code generation summary para UOW-03.
+
+---
+
 ## [v0.5.0] — 2026-03-23
 
 ### ⚙️ Infra
@@ -130,7 +158,8 @@ Versionado: [Semantic Versioning](https://semver.org/)
 
 ---
 
-[Unreleased]: https://github.com/amondrave/PPAI-Agent/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/amondrave/PPAI-Agent/compare/v0.6.0...HEAD
+[v0.6.0]: https://github.com/amondrave/PPAI-Agent/compare/v0.5.0...v0.6.0
 [v0.5.0]: https://github.com/amondrave/PPAI-Agent/compare/v0.4.0...v0.5.0
 [v0.4.0]: https://github.com/amondrave/PPAI-Agent/compare/v0.3.0...v0.4.0
 [v0.3.0]: https://github.com/amondrave/PPAI-Agent/compare/v0.2.0...v0.3.0
