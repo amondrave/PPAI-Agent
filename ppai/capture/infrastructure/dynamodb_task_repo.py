@@ -50,6 +50,19 @@ class DynamoDBTaskStateRepository:
         )
         return [self._to_entity(item) for item in resp.get("Items", [])]
 
+    def list_prioritized(self, user_id: str) -> list[TaskState]:
+        """Query all prioritized tasks for a user via userId-status-index."""
+        resp = self._table.query(
+            IndexName="userId-status-index",
+            KeyConditionExpression="userId = :uid AND #s = :st",
+            ExpressionAttributeNames={"#s": "status"},
+            ExpressionAttributeValues={
+                ":uid": user_id,
+                ":st": TaskStatus.PRIORITIZED.value,
+            },
+        )
+        return [self._to_entity(item) for item in resp.get("Items", [])]
+
     def count_active(self, user_id: str) -> int:
         count = 0
         for status in ACTIVE_STATUSES:

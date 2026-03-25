@@ -30,6 +30,12 @@ class FakeTaskRepo:
             if t.user_id == user_id and t.status == TaskStatus.PENDING
         ]
 
+    def list_prioritized(self, user_id: str) -> list[TaskState]:
+        return [
+            t for t in self._tasks.values()
+            if t.user_id == user_id and t.status == TaskStatus.PRIORITIZED
+        ]
+
     def get_by_id(self, user_id: str, task_id: str) -> TaskState | None:
         t = self._tasks.get(task_id)
         return t if t and t.user_id == user_id else None

@@ -64,23 +64,32 @@ class DecisionService:
         # BR-DEC-01 — only pending tasks are eligible
         pending_tasks = self._task_repo.list_pending(user_id)
 
-        # BR-DEC-02 — score each eligible task
-        scores = [self._engine.score(task, now) for task in pending_tasks]
+        if pending_tasks:
+            # BR-DEC-02 — score each eligible task
+            scores = [self._engine.score(task, now) for task in pending_tasks]
 
-        # BR-DEC-03 — tie-breaking: deadline ASC (null last), createdAt ASC
-        task_by_id = {t.task_id: t for t in pending_tasks}
-        scores.sort(key=lambda s: self._sort_key(s, task_by_id))
+            # BR-DEC-03 — tie-breaking: deadline ASC (null last), createdAt ASC
+            task_by_id = {t.task_id: t for t in pending_tasks}
+            scores.sort(key=lambda s: self._sort_key(s, task_by_id))
 
-        # BR-DEC-04 — select top N (max 3)
-        top_scores = scores[:_TOP3_MAX]
-        ranked = tuple(top_scores)
+            # BR-DEC-04 — select top N (max 3)
+            top_scores = scores[:_TOP3_MAX]
+            ranked = tuple(top_scores)
 
-        # BR-DEC-04 — transition selected tasks: pending → prioritized
-        for score in top_scores:
-            task = task_by_id[score.task_id]
-            task.status = TaskStatus.PRIORITIZED
-            task.updated_at = now
-            self._task_repo.save(task)
+            # BR-DEC-04 — transition selected tasks: pending → prioritized
+            for score in top_scores:
+                task = task_by_id[score.task_id]
+                task.status = TaskStatus.PRIORITIZED
+                task.updated_at = now
+                self._task_repo.save(task)
+        else:
+            # Re-show already prioritized tasks (no status change)
+            prioritized_tasks = self._task_repo.list_prioritized(user_id)
+            scores = [self._engine.score(task, now) for task in prioritized_tasks]
+            task_by_id = {t.task_id: t for t in prioritized_tasks}
+            scores.sort(key=lambda s: self._sort_key(s, task_by_id))
+            top_scores = scores[:_TOP3_MAX]
+            ranked = tuple(top_scores)
 
         # BR-DEC-08 — register in ExecutionCycle (best effort)
         cycle = self._get_or_create_cycle(user_id, today)
