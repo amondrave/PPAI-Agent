@@ -13,13 +13,14 @@ module "ecr" {
 }
 
 module "iam" {
-  source              = "./modules/iam"
-  tasks_table_arn     = module.dynamodb.tasks_table_arn
-  events_table_arn    = module.dynamodb.events_table_arn
-  dedup_table_arn     = module.dynamodb.dedup_table_arn
-  cycles_table_arn    = module.dynamodb.cycles_table_arn
-  ecr_repository_arn  = module.ecr.repository_arn
-  log_group_bot_arn   = module.monitoring.log_group_bot_arn
+  source                = "./modules/iam"
+  tasks_table_arn       = module.dynamodb.tasks_table_arn
+  events_table_arn      = module.dynamodb.events_table_arn
+  dedup_table_arn       = module.dynamodb.dedup_table_arn
+  cycles_table_arn      = module.dynamodb.cycles_table_arn
+  preferences_table_arn = module.dynamodb.preferences_table_arn
+  ecr_repository_arn    = module.ecr.repository_arn
+  log_group_bot_arn     = module.monitoring.log_group_bot_arn
 }
 
 module "monitoring" {

@@ -73,6 +73,17 @@ TABLES = [
         ],
         "BillingMode": "PAY_PER_REQUEST",
     },
+    # UOW-03: ppai-preferences
+    {
+        "TableName": f"{PREFIX}-preferences",
+        "KeySchema": [
+            {"AttributeName": "userId", "KeyType": "HASH"},
+        ],
+        "AttributeDefinitions": [
+            {"AttributeName": "userId", "AttributeType": "S"},
+        ],
+        "BillingMode": "PAY_PER_REQUEST",
+    },
     # UOW-02: ppai-cycles
     {
         "TableName": f"{PREFIX}-cycles",
