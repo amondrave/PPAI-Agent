@@ -11,6 +11,15 @@ Versionado: [Semantic Versioning](https://semver.org/)
 
 ---
 
+## [v0.6.1] — 2026-03-25
+
+### 🐛 Fixed
+
+- Corregido bug donde `/top3` mostraba "bandeja vacía" tras expirar el cache de 60s, cuando la tarea ya estaba como `prioritized` en DynamoDB — ahora re-muestra tareas priorizadas sin cambiar su estado. (#8)
+- Corregido crash del contenedor ECS al arrancar por dependencia `requests` no declarada en `requirements.txt` — usada por `TelegramPushAdapter` (UOW-03).
+
+---
+
 ## [v0.6.0] — 2026-03-25
 
 ### ✨ Added — UOW-03 Push & Scheduling
@@ -158,7 +167,8 @@ Versionado: [Semantic Versioning](https://semver.org/)
 
 ---
 
-[Unreleased]: https://github.com/amondrave/PPAI-Agent/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/amondrave/PPAI-Agent/compare/v0.6.1...HEAD
+[v0.6.1]: https://github.com/amondrave/PPAI-Agent/compare/v0.6.0...v0.6.1
 [v0.6.0]: https://github.com/amondrave/PPAI-Agent/compare/v0.5.0...v0.6.0
 [v0.5.0]: https://github.com/amondrave/PPAI-Agent/compare/v0.4.0...v0.5.0
 [v0.4.0]: https://github.com/amondrave/PPAI-Agent/compare/v0.3.0...v0.4.0

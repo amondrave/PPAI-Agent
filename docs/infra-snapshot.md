@@ -1,8 +1,8 @@
 # Infra Snapshot — PPAI en Producción
 
 **Región:** us-east-1
-**Última actualización:** 2026-03-23T12:51:00Z
-**Deploy commit:** `af69f6a5` — Fix: 7 issues in pipeline + terraform for reliable continuous deploy
+**Última actualización:** 2026-03-25T21:50:00Z
+**Deploy commit:** `dc1f81da` — Merge pull request #8 (fix/top3-bandeja-vacia)
 **Estado general:** ✅ Operativo
 
 ---
@@ -15,11 +15,9 @@
 | Servicio | `ppai-bot-service` |
 | Estado | ACTIVE |
 | Tasks corriendo | 1 / 1 |
-| Task Definition | `ppai-bot-task:1` |
-| Imagen desplegada | `198860290243.dkr.ecr.us-east-1.amazonaws.com/ppai-bot:af69f6a587326eac26a1b9c38b0b8d82a53969a9` |
+| Task Definition | `ppai-bot-task:7` |
+| Imagen desplegada | `198860290243.dkr.ecr.us-east-1.amazonaws.com/ppai-bot:dc1f81daa2ef1cb3a4e5acf745753741fecddde8` |
 | CPU / Memoria | 256 CPU / 512 MB |
-| Modo | Polling (sin webhook, sin puerto expuesto) |
-| Creado | 2026-03-23 |
 
 ### Verificar desde CLI
 ```bash
@@ -28,12 +26,6 @@ aws ecs describe-services \
   --cluster ppai-cluster \
   --services ppai-bot-service \
   --query 'services[0].{status:status,running:runningCount,desired:desiredCount}'
-
-# Task corriendo y su IP pública
-aws ecs list-tasks --cluster ppai-cluster --service-name ppai-bot-service
-aws ecs describe-tasks --cluster ppai-cluster \
-  --tasks $(aws ecs list-tasks --cluster ppai-cluster --service-name ppai-bot-service --query 'taskArns[0]' --output text) \
-  --query 'tasks[0].{status:lastStatus,health:healthStatus,startedAt:startedAt}'
 
 # Logs en tiempo real
 aws logs tail /ppai/bot --follow --since 5m
@@ -47,22 +39,19 @@ aws logs tail /ppai/bot --follow --since 5m
 |-------|-------|
 | Repositorio | `198860290243.dkr.ecr.us-east-1.amazonaws.com/ppai-bot` |
 | Mutabilidad | MUTABLE |
-| Imagen activa (SHA) | `af69f6a587326eac26a1b9c38b0b8d82a53969a9` |
-| Tag `latest` apunta a | `af69f6a5` |
-| Imágenes almacenadas | 3 (b499f83c, 5296740d, af69f6a5/latest) |
+| Tags presentes | `dc1f81da...`, `6e6fd996...`, `baafa2b2...`, `2302c070...`, `a7df9299...`, `3c71166b...`, `af69f6a5...`, `b499f83c...`, `5296740d...`, `latest` |
+| Imagen activa | `dc1f81daa2ef1cb3a4e5acf745753741fecddde8` |
 
 ### Verificar desde CLI
 ```bash
-# Listar todas las imágenes con fecha
-aws ecr describe-images --repository-name ppai-bot \
-  --query 'sort_by(imageDetails, &imagePushedAt)[*].{tags:imageTags,pushed:imagePushedAt}' \
-  --output table
+# Listar imágenes
+aws ecr list-images --repository-name ppai-bot --filter tagStatus=TAGGED
 
-# Imagen activa en el servicio ECS
+# Imagen activa en el servicio
 aws ecs describe-services --cluster ppai-cluster --services ppai-bot-service \
   --query 'services[0].taskDefinition' --output text | xargs \
   aws ecs describe-task-definition --task-definition \
-  --query 'taskDefinition.containerDefinitions[0].image' --output text
+  --query 'taskDefinition.containerDefinitions[0].image'
 ```
 
 ---
@@ -71,24 +60,22 @@ aws ecs describe-services --cluster ppai-cluster --services ppai-bot-service \
 
 | Tabla | ARN | Estado | Items |
 |-------|-----|--------|-------|
-| `ppai-tasks` | `arn:aws:dynamodb:us-east-1:198860290243:table/ppai-tasks` | ACTIVE | 0 |
-| `ppai-events` | `arn:aws:dynamodb:us-east-1:198860290243:table/ppai-events` | ACTIVE | 0 |
-| `ppai-dedup` | `arn:aws:dynamodb:us-east-1:198860290243:table/ppai-dedup` | ACTIVE | 0 |
-| `ppai-cycles` | `arn:aws:dynamodb:us-east-1:198860290243:table/ppai-cycles` | ACTIVE | 0 |
-
-Todas con `deletion_protection = true` y billing `PAY_PER_REQUEST`.
+| `ppai-tasks` | `arn:aws:dynamodb:us-east-1:198860290243:table/ppai-tasks` | ACTIVE | 2 |
+| `ppai-events` | `arn:aws:dynamodb:us-east-1:198860290243:table/ppai-events` | ACTIVE | 2 |
+| `ppai-dedup` | `arn:aws:dynamodb:us-east-1:198860290243:table/ppai-dedup` | ACTIVE | 1 |
+| `ppai-cycles` | `arn:aws:dynamodb:us-east-1:198860290243:table/ppai-cycles` | ACTIVE | 3 |
+| `ppai-preferences` | `arn:aws:dynamodb:us-east-1:198860290243:table/ppai-preferences` | ACTIVE | 0 |
 
 ### Verificar desde CLI
 ```bash
-# Estado de todas las tablas de un vistazo
-for TABLE in ppai-tasks ppai-events ppai-dedup ppai-cycles; do
-  echo -n "$TABLE: "
+# Estado de todas las tablas
+for TABLE in ppai-tasks ppai-events ppai-dedup ppai-cycles ppai-preferences; do
   aws dynamodb describe-table --table-name $TABLE \
-    --query 'Table.{status:TableStatus,items:ItemCount}' --output text
+    --query 'Table.{name:TableName,status:TableStatus,items:ItemCount}'
 done
 
-# Contar items en tasks (cuando haya datos)
-aws dynamodb scan --table-name ppai-tasks --select COUNT --output text
+# Contar items en tasks
+aws dynamodb scan --table-name ppai-tasks --select COUNT
 ```
 
 ---
@@ -97,29 +84,23 @@ aws dynamodb scan --table-name ppai-tasks --select COUNT --output text
 
 | Recurso | ID | Estado |
 |---------|-----|--------|
-| VPC (`10.0.0.0/16`) | `vpc-0cf93e598f59df491` | available |
+| VPC | `vpc-0cf93e598f59df491` | available |
 | Subnet pública A | `subnet-03d19cda064456e32` | us-east-1a |
 | Subnet pública B | `subnet-022789a4aabc02774` | us-east-1b |
+| Subnet privada A | `subnet-05cb3536c9592345e` | us-east-1a |
+| Subnet privada B | `subnet-08d184f1312bce86b` | us-east-1b |
 | Internet Gateway | `igw-05d33fa9098f16f0f` | available |
 | DynamoDB VPC Endpoint | `vpce-0f369f01df69672c5` | available |
 
-> ECS corre en subnets **públicas** con `assign_public_ip = true`. Sin NAT Gateway.
-> DynamoDB usa el VPC Endpoint — tráfico interno, sin salir a internet.
-
 ### Verificar desde CLI
 ```bash
-# VPC y subnets
+# VPC
 aws ec2 describe-vpcs --filters "Name=tag:Name,Values=ppai-vpc" \
-  --query 'Vpcs[0].{id:VpcId,state:State,cidr:CidrBlock}'
+  --query 'Vpcs[0].{id:VpcId,state:State}'
 
-# VPC Endpoint para DynamoDB
+# Endpoint DynamoDB
 aws ec2 describe-vpc-endpoints --filters "Name=tag:Name,Values=ppai-dynamodb-endpoint" \
-  --query 'VpcEndpoints[0].{id:VpcEndpointId,state:State,service:ServiceName}'
-
-# Security group de ECS
-aws ec2 describe-security-groups \
-  --filters "Name=tag:Name,Values=ppai-ecs-sg" \
-  --query 'SecurityGroups[0].{id:GroupId,egress:IpPermissionsEgress}'
+  --query 'VpcEndpoints[0].{id:VpcEndpointId,state:State}'
 ```
 
 ---
@@ -128,25 +109,17 @@ aws ec2 describe-security-groups \
 
 | Role | ARN | Propósito |
 |------|-----|-----------|
-| `ppai-task-execution-role` | `arn:aws:iam::198860290243:role/ppai-task-execution-role` | ECS pull de imagen ECR + escribir CloudWatch |
-| `ppai-task-role` | `arn:aws:iam::198860290243:role/ppai-task-role` | Permisos DynamoDB del bot (least privilege) |
-| `ppai-github-deploy` | `arn:aws:iam::198860290243:role/ppai-github-deploy` | GitHub Actions OIDC — deploy sin access keys |
+| `ppai-task-execution-role` | `arn:aws:iam::198860290243:role/ppai-task-execution-role` | ECS pull de imagen + CloudWatch |
+| `ppai-task-role` | `arn:aws:iam::198860290243:role/ppai-task-role` | Permisos DynamoDB del bot |
+| `ppai-github-deploy` | `arn:aws:iam::198860290243:role/ppai-github-deploy` | GitHub Actions OIDC deploy |
 
 ### Verificar desde CLI
 ```bash
-# Todos los roles del proyecto
-aws iam list-roles \
-  --query 'Roles[?starts_with(RoleName, `ppai`)].{name:RoleName,arn:Arn}' \
-  --output table
+# Listar roles del proyecto
+aws iam list-roles --query 'Roles[?starts_with(RoleName, `ppai`)].{name:RoleName,arn:Arn}'
 
-# Policies inline del task role (permisos DynamoDB)
-aws iam get-role-policy \
-  --role-name ppai-task-role \
-  --policy-name ppai-task-policy \
-  --query 'PolicyDocument.Statement[*].{effect:Effect,actions:Action,resources:Resource}'
-
-# OIDC provider para GitHub Actions
-aws iam list-open-id-connect-providers --query 'OpenIDConnectProviderList[*].Arn'
+# Policies del task role
+aws iam get-role-policy --role-name ppai-task-role --policy-name ppai-task-policy
 ```
 
 ---
@@ -155,23 +128,18 @@ aws iam list-open-id-connect-providers --query 'OpenIDConnectProviderList[*].Arn
 
 | Log Group | Retención | Bytes almacenados |
 |-----------|-----------|-------------------|
-| `/ppai/bot` | 90 días | 0 (bot recién iniciado) |
+| `/ppai/bot` | 90 días | 2,471,681 |
 
 ### Verificar desde CLI
 ```bash
 # Ver logs del bot (últimos 10 minutos)
 aws logs tail /ppai/bot --since 10m
 
-# Buscar errores en la última hora
+# Buscar errores
 aws logs filter-log-events \
   --log-group-name /ppai/bot \
   --filter-pattern "ERROR" \
-  --start-time $(python3 -c "import time; print(int((time.time()-3600)*1000))")
-
-# Buscar arranque del bot
-aws logs filter-log-events \
-  --log-group-name /ppai/bot \
-  --filter-pattern "Starting PPAI"
+  --start-time $(date -v-1H +%s000)
 ```
 
 ---
@@ -180,21 +148,18 @@ aws logs filter-log-events \
 
 | Recurso | Valor | Estado |
 |---------|-------|--------|
-| S3 Bucket | `ppai-terraform-state` | ACTIVE (versioning + AES256) |
+| S3 Bucket | `ppai-terraform-state` | versioning enabled |
 | DynamoDB Lock | `ppai-terraform-lock` | ACTIVE |
-| State file | `ppai/terraform.tfstate` | 59.2 KiB — 2026-03-23 |
+| State file | `ppai/terraform.tfstate` | 65,611 bytes — 2026-03-25 |
 
 ### Verificar desde CLI
 ```bash
-# Ver state file en S3
+# Último state
 aws s3 ls s3://ppai-terraform-state/ppai/ --human-readable
 
-# Verificar que no hay lock activo (debería estar vacío en reposo)
+# Ver si hay lock activo
 aws dynamodb scan --table-name ppai-terraform-lock \
-  --query 'Items[*].LockID' --output text
-
-# Outputs del last apply
-cd terraform && terraform output
+  --query 'Items[*].LockID'
 ```
 
 ---
@@ -203,14 +168,14 @@ cd terraform && terraform output
 
 | Servicio | Costo estimado |
 |----------|---------------|
-| ECS Fargate (256 CPU, 512 MB, 24/7) | ~$8.50 |
-| DynamoDB (On-Demand, bajo volumen) | ~$0.50 |
+| ECS Fargate (256 CPU, 512 MB, 24/7) | ~$9.50 |
+| DynamoDB (On-Demand, bajo volumen) | ~$1.50 |
 | CloudWatch Logs (90 días retención) | ~$1.00 |
 | ECR (imágenes almacenadas) | ~$0.10 |
 | VPC + Internet Gateway | $0.00 |
-| **Total** | **~$10.10/mes** |
+| **Total** | **~$12.10/mes** |
 
-> NAT Gateway eliminado — ahorro de ~$32/mes respecto al diseño original.
+*NAT Gateway eliminado — ahorro de ~$32/mes respecto al diseño original.*
 
 ---
 
@@ -218,4 +183,6 @@ cd terraform && terraform output
 
 | Fecha | Commit | Estado | Cambios principales |
 |-------|--------|--------|---------------------|
-| 2026-03-23 | `af69f6a5` | ✅ Operativo | Primer deploy exitoso a prod — polling mode, ECS 1/1, 4 tablas DynamoDB activas |
+| 2026-03-23 | `af69f6a5` | ✅ Operativo | Primer deploy exitoso — polling mode, ECS 1/1, 4 tablas DynamoDB |
+| 2026-03-25 | `baafa2b2` | ✅ Operativo | UOW-03: tabla ppai-preferences ACTIVE, task def :5 creada, rolling update pendiente |
+| 2026-03-25 | `dc1f81da` | ✅ Operativo | Fix #8: /top3 bandeja vacía + requests dep — task def :7, 5 tablas DynamoDB, 1/1 running |
