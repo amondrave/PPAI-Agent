@@ -72,6 +72,26 @@ resource "aws_dynamodb_table" "dedup" {
   tags = { Name = "${var.table_prefix}-dedup" }
 }
 
+# UOW-03: User nudge preferences table
+resource "aws_dynamodb_table" "preferences" {
+  name         = "${var.table_prefix}-preferences"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "userId"
+
+  attribute {
+    name = "userId"
+    type = "S"
+  }
+
+  server_side_encryption {
+    enabled = true
+  }
+
+  deletion_protection_enabled = true
+
+  tags = { Name = "${var.table_prefix}-preferences", Unit = "uow-03" }
+}
+
 # UOW-02: ExecutionCycle table
 resource "aws_dynamodb_table" "cycles" {
   name         = "${var.table_prefix}-cycles"

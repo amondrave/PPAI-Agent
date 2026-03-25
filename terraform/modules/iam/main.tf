@@ -113,6 +113,16 @@ resource "aws_iam_role_policy" "task" {
           "${var.cycles_table_arn}/index/*",
         ]
       },
+      # UOW-03: UserNudgePreferences permissions
+      {
+        Effect = "Allow"
+        Action = [
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:UpdateItem",
+        ]
+        Resource = var.preferences_table_arn
+      },
     ]
   })
 }

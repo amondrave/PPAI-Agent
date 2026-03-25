@@ -18,6 +18,11 @@ variable "cycles_table_arn" {
   type        = string
 }
 
+variable "preferences_table_arn" {
+  description = "ARN of the preferences DynamoDB table (UOW-03)"
+  type        = string
+}
+
 variable "github_repo" {
   description = "GitHub repo en formato owner/repo — restringe el OIDC role a este repo"
   type        = string

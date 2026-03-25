@@ -14,6 +14,11 @@ from ppai.decision.application.decision_service import DecisionService
 from ppai.decision.domain.scoring_engine import ScoringEngine
 from ppai.decision.infrastructure.decision_telegram_adapter import DecisionTelegramAdapter
 from ppai.decision.infrastructure.dynamodb_cycle_repo import DynamoDBCycleRepository
+from ppai.push.application.nudge_scheduler import NudgeScheduler
+from ppai.push.application.nudge_service import NudgeService
+from ppai.push.infrastructure.cycle_event_repo import DynamoDBCycleEventRepository
+from ppai.push.infrastructure.dynamodb_preferences_repo import DynamoDBPreferencesRepository
+from ppai.push.infrastructure.telegram_push_adapter import TelegramPushAdapter
 from ppai.shared.infrastructure.config import get_settings
 from ppai.shared.infrastructure.dynamodb_client import get_dynamodb_resource, table_name
 from ppai.shared.infrastructure.logging import setup_logging
@@ -26,15 +31,18 @@ def build_app() -> Application:
     settings = get_settings()
 
     dynamodb = get_dynamodb_resource(settings.aws_region, settings.dynamodb_endpoint_url)
-    task_table  = dynamodb.Table(table_name(settings.dynamodb_table_prefix, "tasks"))
-    event_table = dynamodb.Table(table_name(settings.dynamodb_table_prefix, "events"))
-    dedup_table = dynamodb.Table(table_name(settings.dynamodb_table_prefix, "dedup"))
-    cycle_table = dynamodb.Table(table_name(settings.dynamodb_table_prefix, "cycles"))
+    task_table        = dynamodb.Table(table_name(settings.dynamodb_table_prefix, "tasks"))
+    event_table       = dynamodb.Table(table_name(settings.dynamodb_table_prefix, "events"))
+    dedup_table       = dynamodb.Table(table_name(settings.dynamodb_table_prefix, "dedup"))
+    cycle_table       = dynamodb.Table(table_name(settings.dynamodb_table_prefix, "cycles"))
+    preferences_table = dynamodb.Table(table_name(settings.dynamodb_table_prefix, "preferences"))
 
-    task_repo  = DynamoDBTaskStateRepository(task_table)
-    event_repo = DynamoDBEventRepository(event_table)
-    dedup_repo = DynamoDBDedupRepository(dedup_table, settings)
-    cycle_repo = DynamoDBCycleRepository(cycle_table)
+    task_repo    = DynamoDBTaskStateRepository(task_table)
+    event_repo   = DynamoDBEventRepository(event_table)
+    dedup_repo   = DynamoDBDedupRepository(dedup_table, settings)
+    cycle_repo   = DynamoDBCycleRepository(cycle_table)
+    prefs_repo   = DynamoDBPreferencesRepository(preferences_table)
+    cycle_event_repo = DynamoDBCycleEventRepository(cycle_table)
 
     # UOW-01: Capture
     capture_service = CaptureService(
@@ -60,6 +68,20 @@ def build_app() -> Application:
     capture_adapter  = TelegramAdapter(capture_service, rate_limiter)
     decision_adapter = DecisionTelegramAdapter(decision_service)
 
+    # UOW-03: Push & Scheduling
+    telegram_push = TelegramPushAdapter(bot_token=settings.telegram_bot_token)
+    nudge_service = NudgeService(
+        prefs_repo=prefs_repo,
+        cycle_event_repo=cycle_event_repo,
+        task_repo=task_repo,
+        telegram_port=telegram_push,
+        decision_service=decision_service,
+    )
+    nudge_scheduler = NudgeScheduler(
+        nudge_service=nudge_service,
+        user_ids_provider=lambda: [],  # populated at runtime via user registry
+    )
+
     application = (
         Application.builder()
         .token(settings.telegram_bot_token)
@@ -81,6 +103,8 @@ def build_app() -> Application:
     )
 
     application.add_error_handler(capture_adapter.error_handler)
+
+    nudge_scheduler.start()
 
     return application
 

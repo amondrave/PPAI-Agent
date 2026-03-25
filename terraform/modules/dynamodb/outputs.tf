@@ -13,3 +13,7 @@ output "dedup_table_arn" {
 output "cycles_table_arn" {
   value = aws_dynamodb_table.cycles.arn
 }
+
+output "preferences_table_arn" {
+  value = aws_dynamodb_table.preferences.arn
+}

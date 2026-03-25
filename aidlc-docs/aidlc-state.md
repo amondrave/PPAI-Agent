@@ -3,7 +3,7 @@
 ## Project Information
 - **Project Type**: Greenfield
 - **Start Date**: 2026-03-10T21:21:54Z
-- **Current Stage**: CONSTRUCTION - Build and Test COMPLETO (UOW-01 + UOW-02)
+- **Current Stage**: CONSTRUCTION - Code Generation COMPLETO (UOW-01 + UOW-02 + UOW-03)
 
 ## Workspace State
 - **Existing Code**: Yes (UOW-01 + UOW-02 completos, CI/CD verde)
@@ -55,24 +55,25 @@
 - [x] Functional Design ✅ 2026-03-23
 - [x] NFR Requirements ✅ 2026-03-23
 - [x] NFR Design ✅ 2026-03-23
-- [ ] Infrastructure Design
-- [ ] Code Planning
-- [ ] Code Generation
-- [ ] Build and Test
+- [x] Infrastructure Design ✅ 2026-03-25
+- [x] Code Planning ✅ 2026-03-25
+- [x] Code Generation ✅ 2026-03-25 (Steps 1–16, 83 tests passing UOW-03)
+- [ ] Build and Test 🔄 EN PROGRESO (BDD tests implementados, 262 passing)
 
 ### 🟡 OPERATIONS PHASE
 - [ ] Operations (PLACEHOLDER)
 
 ## Current Status
 - **Lifecycle Phase**: CONSTRUCTION
-- **Current Stage**: UOW-03 Push & Scheduling pausado tras Design aprobado (Functional + NFR Requirements + NFR Design). UOW-01 y UOW-02 permanecen cerrados en main con CI/CD operativo.
-- **Last Session Date**: 2026-03-23
-- **Next**: Continuar con Infrastructure Design de UOW-03 cuando el usuario lo indique.
+- **Current Stage**: UOW-03 Push & Scheduling — Build and Test en progreso. BDD acceptance tests implementados (262 passing, 0 failing).
+- **Last Session Date**: 2026-03-25
+- **Next**: Build and Test de UOW-03 — continuar con: LocalStack (ppai-preferences table), docker-compose up, prueba manual Telegram, CI verde en rama, PR → merge → deploy prod.
 
 ## Test Coverage (total acumulado)
-- **Total tests**: 168 passing (0 failing)
+- **Total tests**: 262 passing (0 failing)
 - **UOW-01**: 75 tests (52 unit, 14 integration, 9 e2e)
 - **UOW-02**: 93 tests (65 unit, 14 integration, 14 e2e)
+- **UOW-03**: 94 tests (71 unit, 14 integration, 9 e2e) — incluye 11 BDD acceptance tests
 
 ## CI/CD Pipeline (operativo)
 - **Branch**: main

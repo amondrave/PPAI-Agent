@@ -80,4 +80,16 @@ def dynamodb_resource():
             BillingMode="PAY_PER_REQUEST",
         )
 
+        # UOW-03: User nudge preferences table
+        resource.create_table(
+            TableName="ppai-preferences",
+            KeySchema=[
+                {"AttributeName": "userId", "KeyType": "HASH"},
+            ],
+            AttributeDefinitions=[
+                {"AttributeName": "userId", "AttributeType": "S"},
+            ],
+            BillingMode="PAY_PER_REQUEST",
+        )
+
         yield resource
