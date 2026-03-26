@@ -11,6 +11,25 @@ Versionado: [Semantic Versioning](https://semver.org/)
 
 ---
 
+## [v0.7.0] — 2026-03-26
+
+### ✨ Added
+
+- Implementado `UserRegistry` thread-safe que registra automáticamente el `chat_id` de cada usuario al capturar tareas o usar `/top3` — el `NudgeScheduler` ahora tiene usuarios reales a quiénes evaluar en cada tick. (#10)
+- Implementado comando `/config` en Telegram para que el usuario configure sus preferencias de nudge desde el chat:
+  - `/config` — muestra configuración actual (timezone, máx nudges, ventana de silencio)
+  - `/config silencio HH:MM-HH:MM` — configura ventana de silencio (ej. 22:00-08:00)
+  - `/config nudges N` — máximo de recordatorios por día (1-10)
+  - `/config timezone ZONA` — zona horaria (ej. America/Bogota)
+- Conectado el scheduler con el registry: el bot ahora envía nudges proactivos a usuarios que han interactuado, respetando sus preferencias configuradas.
+- 18 tests nuevos: 6 para `UserRegistry` (incluyendo thread-safety) y 12 para `ConfigTelegramAdapter` (validaciones, subcomandos, defaults). Total: 266 tests passing.
+
+### ⚙️ Infra
+
+- Wiring actualizado en `main.py`: `UserRegistry` inyectado en `TelegramAdapter` y `DecisionTelegramAdapter`, `ConfigTelegramAdapter` registrado como handler de `/config`, `NudgeScheduler` conectado a `registry.get_all`.
+
+---
+
 ## [v0.6.1] — 2026-03-25
 
 ### 🐛 Fixed
@@ -167,7 +186,8 @@ Versionado: [Semantic Versioning](https://semver.org/)
 
 ---
 
-[Unreleased]: https://github.com/amondrave/PPAI-Agent/compare/v0.6.1...HEAD
+[Unreleased]: https://github.com/amondrave/PPAI-Agent/compare/v0.7.0...HEAD
+[v0.7.0]: https://github.com/amondrave/PPAI-Agent/compare/v0.6.1...v0.7.0
 [v0.6.1]: https://github.com/amondrave/PPAI-Agent/compare/v0.6.0...v0.6.1
 [v0.6.0]: https://github.com/amondrave/PPAI-Agent/compare/v0.5.0...v0.6.0
 [v0.5.0]: https://github.com/amondrave/PPAI-Agent/compare/v0.4.0...v0.5.0
