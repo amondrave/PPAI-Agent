@@ -8,6 +8,7 @@ from telegram.ext import ContextTypes
 from ppai.capture.application.capture_service import CaptureService
 from ppai.capture.domain.exceptions import InvalidInputError
 from ppai.shared.infrastructure.rate_limiter import InMemoryRateLimiter
+from ppai.shared.infrastructure.user_registry import UserRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -17,9 +18,11 @@ class TelegramAdapter:
         self,
         capture_service: CaptureService,
         rate_limiter: InMemoryRateLimiter,
+        user_registry: UserRegistry | None = None,
     ) -> None:
         self._capture_service = capture_service
         self._rate_limiter = rate_limiter
+        self._user_registry = user_registry
 
     async def message_handler(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
@@ -28,6 +31,9 @@ class TelegramAdapter:
             return
 
         user_id = str(update.effective_user.id)
+
+        if self._user_registry:
+            self._user_registry.register(user_id)
 
         if not self._rate_limiter.check(user_id):
             await update.message.reply_text(

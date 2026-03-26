@@ -18,11 +18,13 @@ from ppai.push.application.nudge_scheduler import NudgeScheduler
 from ppai.push.application.nudge_service import NudgeService
 from ppai.push.infrastructure.cycle_event_repo import DynamoDBCycleEventRepository
 from ppai.push.infrastructure.dynamodb_preferences_repo import DynamoDBPreferencesRepository
+from ppai.push.infrastructure.config_telegram_adapter import ConfigTelegramAdapter
 from ppai.push.infrastructure.telegram_push_adapter import TelegramPushAdapter
 from ppai.shared.infrastructure.config import get_settings
 from ppai.shared.infrastructure.dynamodb_client import get_dynamodb_resource, table_name
 from ppai.shared.infrastructure.logging import setup_logging
 from ppai.shared.infrastructure.rate_limiter import InMemoryRateLimiter
+from ppai.shared.infrastructure.user_registry import UserRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -65,8 +67,11 @@ def build_app() -> Application:
         window_seconds=60,
     )
 
-    capture_adapter  = TelegramAdapter(capture_service, rate_limiter)
-    decision_adapter = DecisionTelegramAdapter(decision_service)
+    user_registry = UserRegistry()
+
+    capture_adapter  = TelegramAdapter(capture_service, rate_limiter, user_registry)
+    decision_adapter = DecisionTelegramAdapter(decision_service, user_registry)
+    config_adapter   = ConfigTelegramAdapter(prefs_repo)
 
     # UOW-03: Push & Scheduling
     telegram_push = TelegramPushAdapter(bot_token=settings.telegram_bot_token)
@@ -79,7 +84,7 @@ def build_app() -> Application:
     )
     nudge_scheduler = NudgeScheduler(
         nudge_service=nudge_service,
-        user_ids_provider=lambda: [],  # populated at runtime via user registry
+        user_ids_provider=user_registry.get_all,
     )
 
     application = (
@@ -101,6 +106,9 @@ def build_app() -> Application:
             pattern=r"^(done|snooze|clarify):.+$",
         )
     )
+
+    # UOW-03: /config command for nudge preferences
+    application.add_handler(CommandHandler("config", config_adapter.config_handler))
 
     application.add_error_handler(capture_adapter.error_handler)
 
