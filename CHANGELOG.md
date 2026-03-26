@@ -11,6 +11,35 @@ Versionado: [Semantic Versioning](https://semver.org/)
 
 ---
 
+## [v0.8.0] — 2026-03-26
+
+### ✨ Added — UOW-04 Respond & State Transition
+
+- Implementado flujo completo de **Done con confirmación**: al presionar `[✓ Hecho]` el bot pregunta "¿Confirmas?" con botones `[Sí] [No]` — solo al confirmar se transiciona a DONE con timestamp. (#11)
+- Implementado flujo de **Snooze con cooldown**: pospone la tarea 1 hora y muestra contador `(1/3)`. Tras el cooldown, la tarea vuelve automáticamente a PENDING en el siguiente `/top3`.
+- Implementado **límite de snooze** (máx 3): al intentar un 4to snooze el bot responde "Ya pospusiste esta tarea 3 veces" y activa automáticamente el flujo de aclaración.
+- Implementado flujo de **Clarify con texto libre**: al presionar `[? Aclarar]` el bot pregunta qué necesita el usuario; la respuesta en texto libre actualiza la tarea y la devuelve a PENDING con snooze_count reseteado.
+- Implementado registro de **InteractionEvents** (`TASK_DONE`, `TASK_SNOOZED`, `TASK_CLARIFIED`, `TASK_CLARIFY_RESOLVED`) en tabla `ppai-events` con TTL de 90 días + eventos duales en `ppai-cycles` para agregación diaria.
+- Implementados **guards de idempotencia**: callbacks duplicados devuelven mensajes informativos sin cambiar estado (ej. "Esta tarea ya fue completada").
+- Implementado **guard de autorización**: valida que el usuario que presiona un botón sea el dueño de la tarea — si no coincide, responde "No tienes permiso para esta acción".
+- Implementado **auto-unsnoze**: al consultar `/top3`, las tareas con cooldown expirado se transicionan automáticamente de SNOOZED a PENDING.
+- Nuevo paquete `ppai/respond/` con arquitectura hexagonal: domain (entities, value objects, exceptions), application (ports, ResponseService), infrastructure (DynamoDB adapter, Telegram adapter).
+- 75 tests nuevos: 52 unitarios (domain + service + adapter), 12 BDD acceptance (US-07, US-08), 4 integración (DynamoDB), 7 e2e. Total: 355 tests passing.
+
+### ⚙️ Infra
+
+- Habilitado TTL en tabla DynamoDB `ppai-events` en Terraform — InteractionEvents se auto-eliminan a los 90 días.
+- Extendido `TaskState` con campos `snoozed_until` y `completed_at` — backward compatible con tareas existentes.
+- Extendido `DynamoDBTaskStateRepository` con métodos `list_by_status`, `list_snoozed` y serialización de nuevos campos.
+- Wiring actualizado en `main.py`: `ResponseService` + `ResponseTelegramAdapter` conectados; callbacks extendidos con `confirm_done:` y `cancel_done:`; `MessageHandler` group=1 para respuestas de aclaración por texto libre.
+
+### 📝 Docs
+
+- Generados artefactos AI-DLC completos: functional design (business rules, domain entities, logic model), NFR requirements, NFR design, infrastructure design, code generation plan y summary.
+- Actualizado `aidlc-state.md`: UOW-04 Code Generation completo, 355 tests, pendiente deploy a prod.
+
+---
+
 ## [v0.7.0] — 2026-03-26
 
 ### ✨ Added
@@ -186,7 +215,8 @@ Versionado: [Semantic Versioning](https://semver.org/)
 
 ---
 
-[Unreleased]: https://github.com/amondrave/PPAI-Agent/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/amondrave/PPAI-Agent/compare/v0.8.0...HEAD
+[v0.8.0]: https://github.com/amondrave/PPAI-Agent/compare/v0.7.0...v0.8.0
 [v0.7.0]: https://github.com/amondrave/PPAI-Agent/compare/v0.6.1...v0.7.0
 [v0.6.1]: https://github.com/amondrave/PPAI-Agent/compare/v0.6.0...v0.6.1
 [v0.6.0]: https://github.com/amondrave/PPAI-Agent/compare/v0.5.0...v0.6.0

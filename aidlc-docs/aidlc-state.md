@@ -3,7 +3,7 @@
 ## Project Information
 - **Project Type**: Greenfield
 - **Start Date**: 2026-03-10T21:21:54Z
-- **Current Stage**: CONSTRUCTION - Code Generation COMPLETO (UOW-01 + UOW-02 + UOW-03)
+- **Current Stage**: CONSTRUCTION - UOW-04 COMPLETO (UOW-01 + UOW-02 + UOW-03 + UOW-04)
 
 ## Workspace State
 - **Existing Code**: Yes (UOW-01 + UOW-02 completos, CI/CD verde)
@@ -60,27 +60,26 @@
 - [x] Code Generation ✅ 2026-03-25 (Steps 1–16, 94 tests UOW-03)
 - [x] Build and Test ✅ 2026-03-25 — 262/262 tests, LocalStack OK, prueba manual Telegram OK, PR #6 mergeado, deploy prod en curso
 
-#### UOW-04 Respond & State Transition — 🔧 EN PROGRESO
+#### UOW-04 Respond & State Transition — ✅ COMPLETO
 - [x] Functional Design ✅ 2026-03-25
 - [x] NFR Requirements ✅ 2026-03-25
 - [x] NFR Design ✅ 2026-03-25
 - [x] Infrastructure Design ✅ 2026-03-26
 - [x] Code Planning ✅ 2026-03-26 (15 steps, ~56 tests estimados)
 - [x] Code Generation ✅ 2026-03-26 (Steps 1–15, 75 tests UOW-04, 355 total)
-- [ ] Build and Test
+- [x] Build and Test ✅ 2026-03-26 — 355/355 tests, LocalStack OK, prueba manual Telegram OK, PR #11 mergeado
 
 ### 🟡 OPERATIONS PHASE
 - [ ] Operations (PLACEHOLDER)
 
 ## Current Status
-- **Lifecycle Phase**: CONSTRUCTION (UOW-04)
-- **Current Stage**: UOW-04 Code Generation COMPLETO (15/15 steps, 75 tests nuevos, 355 total).
+- **Lifecycle Phase**: CONSTRUCTION (UOW-04 COMPLETO)
+- **Current Stage**: UOW-04 Build and Test COMPLETO — 355 tests, PR #11 mergeado, CHANGELOG v0.8.0
 - **Last Session Date**: 2026-03-26
-- **Next**: Build and Test (CI verde, LocalStack, prueba manual Telegram)
+- **Next**: UOW-05 Scheduler bot nativo
 
 ## Pendiente siguiente sesión
-- **UOW-04 Build and Test**: CI verde, LocalStack, prueba manual Telegram
-- **Scheduler bot nativo**: Diseño capturado en `aidlc-docs/scheduler-bot-nativo-vision.md` — recordatorio inicio/cierre + modo zen. Será UOW-05.
+- **UOW-05** — Scheduler bot nativo (recordatorio inicio/cierre + modo zen). Diseño capturado en `aidlc-docs/scheduler-bot-nativo-vision.md`.
 
 ## Test Coverage (total acumulado)
 - **Total tests**: 355 passing (0 failing)
@@ -118,7 +117,5 @@
 
 ## Proximos Pasos (siguiente sesion)
 
-1. **UOW-04 Build and Test** — CI verde, LocalStack, prueba manual Telegram (done/snooze/clarify buttons)
-2. **PR + merge** — feature branch → main
-3. **Deploy prod** — verificar ECS task estable con UOW-04 activo
-4. **UOW-05** — Scheduler bot nativo (recordatorio inicio/cierre + modo zen)
+1. **UOW-05** — Scheduler bot nativo (recordatorio inicio/cierre + modo zen)
+2. **Deploy prod** — verificar ECS task estable con UOW-04 activo
