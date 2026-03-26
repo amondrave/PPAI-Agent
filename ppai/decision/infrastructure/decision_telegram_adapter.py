@@ -9,6 +9,7 @@ from ppai.capture.domain.entities import TaskState
 from ppai.decision.application.decision_service import DecisionService
 from ppai.decision.domain.entities import Top3Result
 from ppai.decision.domain.exceptions import TaskNotInTop3Error
+from ppai.shared.infrastructure.user_registry import UserRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -19,8 +20,13 @@ _MSG_SNOOZE_ACK = "Pospuesto. Te lo recuerdo más tarde."
 
 
 class DecisionTelegramAdapter:
-    def __init__(self, decision_service: DecisionService) -> None:
+    def __init__(
+        self,
+        decision_service: DecisionService,
+        user_registry: UserRegistry | None = None,
+    ) -> None:
         self._service = decision_service
+        self._user_registry = user_registry
 
     # ------------------------------------------------------------------
     # /top3 command handler — BR-DEC-06, BR-DEC-07
@@ -33,6 +39,9 @@ class DecisionTelegramAdapter:
             return
 
         user_id = str(update.effective_user.id)
+
+        if self._user_registry:
+            self._user_registry.register(user_id)
 
         try:
             result = self._service.get_top3(user_id)
