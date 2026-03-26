@@ -213,7 +213,13 @@ class TestDailyCapSkip:
         task = make_task()
         task_repo.save(task)
 
-        cycle = ExecutionCycle(user_id=USER, date="2026-03-25")
+        # Use NOW far enough in future to avoid recent_activity guard
+        future_now = datetime.now(timezone.utc) + timedelta(hours=2)
+
+        # Cycle date must match the date NudgeService resolves for future_now
+        from zoneinfo import ZoneInfo
+        local_date = future_now.astimezone(ZoneInfo(prefs.timezone)).strftime("%Y-%m-%d")
+        cycle = ExecutionCycle(user_id=USER, date=local_date)
         cycle_event_repo.create(cycle)
         # Record 2 NUDGE_SENT events (= cap)
         for _ in range(2):
@@ -222,8 +228,6 @@ class TestDailyCapSkip:
         telegram = MagicMock()
         svc = build_service(prefs_repo, cycle_event_repo, task_repo, telegram, make_top3(task.task_id))
 
-        # Use NOW far enough in future to avoid recent_activity guard
-        future_now = datetime.now(timezone.utc) + timedelta(hours=2)
         outcomes = svc.run_tick([USER], now=future_now)
 
         assert outcomes[0].status == NudgeDispatchStatus.skipped_activity
