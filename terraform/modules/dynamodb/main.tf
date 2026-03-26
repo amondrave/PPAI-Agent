@@ -47,6 +47,11 @@ resource "aws_dynamodb_table" "events" {
     type = "S"
   }
 
+  ttl {
+    attribute_name = "ttl"
+    enabled        = true
+  }
+
   deletion_protection_enabled = true
 
   tags = { Name = "${var.table_prefix}-events" }

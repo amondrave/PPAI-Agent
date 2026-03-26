@@ -28,6 +28,10 @@ class DynamoDBTaskStateRepository:
             item["deadline"] = task.deadline.isoformat()
         if task.snooze_count:
             item["snoozeCount"] = task.snooze_count
+        if task.snoozed_until is not None:
+            item["snoozedUntil"] = task.snoozed_until.isoformat()
+        if task.completed_at is not None:
+            item["completedAt"] = task.completed_at.isoformat()
         self._table.put_item(Item=item)
 
     def get_by_id(self, user_id: str, task_id: str) -> TaskState | None:
@@ -79,6 +83,23 @@ class DynamoDBTaskStateRepository:
             count += resp["Count"]
         return count
 
+    def list_snoozed(self, user_id: str) -> list[TaskState]:
+        """Query all snoozed tasks for a user."""
+        return self.list_by_status(user_id, TaskStatus.SNOOZED)
+
+    def list_by_status(self, user_id: str, status: TaskStatus) -> list[TaskState]:
+        """Query tasks by status via userId-status-index."""
+        resp = self._table.query(
+            IndexName="userId-status-index",
+            KeyConditionExpression="userId = :uid AND #s = :st",
+            ExpressionAttributeNames={"#s": "status"},
+            ExpressionAttributeValues={
+                ":uid": user_id,
+                ":st": status.value,
+            },
+        )
+        return [self._to_entity(item) for item in resp.get("Items", [])]
+
     @staticmethod
     def _to_entity(item: dict[str, Any]) -> TaskState:
         return TaskState(
@@ -95,6 +116,16 @@ class DynamoDBTaskStateRepository:
                 else None
             ),
             snooze_count=int(item.get("snoozeCount", 0)),
+            snoozed_until=(
+                datetime.fromisoformat(item["snoozedUntil"])
+                if item.get("snoozedUntil")
+                else None
+            ),
+            completed_at=(
+                datetime.fromisoformat(item["completedAt"])
+                if item.get("completedAt")
+                else None
+            ),
             created_at=datetime.fromisoformat(item["createdAt"]),
             updated_at=datetime.fromisoformat(item["updatedAt"]),
         )

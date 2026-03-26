@@ -60,20 +60,34 @@
 - [x] Code Generation ✅ 2026-03-25 (Steps 1–16, 94 tests UOW-03)
 - [x] Build and Test ✅ 2026-03-25 — 262/262 tests, LocalStack OK, prueba manual Telegram OK, PR #6 mergeado, deploy prod en curso
 
+#### UOW-04 Respond & State Transition — 🔧 EN PROGRESO
+- [x] Functional Design ✅ 2026-03-25
+- [x] NFR Requirements ✅ 2026-03-25
+- [x] NFR Design ✅ 2026-03-25
+- [x] Infrastructure Design ✅ 2026-03-26
+- [x] Code Planning ✅ 2026-03-26 (15 steps, ~56 tests estimados)
+- [x] Code Generation ✅ 2026-03-26 (Steps 1–15, 75 tests UOW-04, 355 total)
+- [ ] Build and Test
+
 ### 🟡 OPERATIONS PHASE
 - [ ] Operations (PLACEHOLDER)
 
 ## Current Status
-- **Lifecycle Phase**: CONSTRUCTION → OPERATIONS
-- **Current Stage**: UOW-03 COMPLETO. Deploy prod en curso (PR #6 mergeado → pipeline CI/CD activo).
-- **Last Session Date**: 2026-03-25
-- **Next**: 1) Confirmar deploy prod exitoso + prod-snapshot. 2) Iniciar OPERATIONS phase.
+- **Lifecycle Phase**: CONSTRUCTION (UOW-04)
+- **Current Stage**: UOW-04 Code Generation COMPLETO (15/15 steps, 75 tests nuevos, 355 total).
+- **Last Session Date**: 2026-03-26
+- **Next**: Build and Test (CI verde, LocalStack, prueba manual Telegram)
+
+## Pendiente siguiente sesión
+- **UOW-04 Build and Test**: CI verde, LocalStack, prueba manual Telegram
+- **Scheduler bot nativo**: Diseño capturado en `aidlc-docs/scheduler-bot-nativo-vision.md` — recordatorio inicio/cierre + modo zen. Será UOW-05.
 
 ## Test Coverage (total acumulado)
-- **Total tests**: 262 passing (0 failing)
+- **Total tests**: 355 passing (0 failing)
 - **UOW-01**: 75 tests (52 unit, 14 integration, 9 e2e)
 - **UOW-02**: 93 tests (65 unit, 14 integration, 14 e2e)
 - **UOW-03**: 94 tests (71 unit, 14 integration, 9 e2e) — incluye 11 BDD acceptance tests
+- **UOW-04**: 75 tests (52 unit + 12 BDD, 4 integration, 7 e2e)
 
 ## CI/CD Pipeline (operativo)
 - **Branch**: main
@@ -104,6 +118,7 @@
 
 ## Proximos Pasos (siguiente sesion)
 
-1. **Confirmar deploy prod** — verificar ECS task estable con UOW-03 activo (nudge scheduler corriendo)
-2. **prod-snapshot** — ejecutar skill para documentar estado AWS actualizado
-3. **OPERATIONS phase** — iniciar según AI-DLC workflow
+1. **UOW-04 Build and Test** — CI verde, LocalStack, prueba manual Telegram (done/snooze/clarify buttons)
+2. **PR + merge** — feature branch → main
+3. **Deploy prod** — verificar ECS task estable con UOW-04 activo
+4. **UOW-05** — Scheduler bot nativo (recordatorio inicio/cierre + modo zen)

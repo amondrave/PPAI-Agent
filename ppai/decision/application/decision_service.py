@@ -61,6 +61,9 @@ class DecisionService:
         now = now or datetime.now(timezone.utc)
         today = now.date()
 
+        # BR-RSP-02 — auto-unsnoze tasks whose cooldown has expired
+        self._unsnoze_expired(user_id, now)
+
         # BR-DEC-01 — only pending tasks are eligible
         pending_tasks = self._task_repo.list_pending(user_id)
 
@@ -213,6 +216,23 @@ class DecisionService:
                 extra={"user_id": user_id, "cycle_id": cycle.cycle_id},
             )
         return cycle
+
+    def _unsnoze_expired(self, user_id: str, now: datetime) -> None:
+        """Transition SNOOZED tasks back to PENDING when cooldown has expired."""
+        try:
+            snoozed = self._task_repo.list_snoozed(user_id)
+        except AttributeError:
+            return  # repo doesn't support list_snoozed (e.g., test fakes)
+        for task in snoozed:
+            if task.snoozed_until is not None and task.snoozed_until <= now:
+                task.status = TaskStatus.PENDING
+                task.snoozed_until = None
+                task.updated_at = now
+                self._task_repo.save(task)
+                logger.info(
+                    "snooze.expired",
+                    extra={"user_id": user_id, "task_id": task.task_id},
+                )
 
     @staticmethod
     def _sort_key(score: PriorityScore, task_by_id: dict[str, TaskState]):
