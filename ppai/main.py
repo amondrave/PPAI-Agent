@@ -14,12 +14,16 @@ from ppai.decision.application.decision_service import DecisionService
 from ppai.decision.domain.scoring_engine import ScoringEngine
 from ppai.decision.infrastructure.decision_telegram_adapter import DecisionTelegramAdapter
 from ppai.decision.infrastructure.dynamodb_cycle_repo import DynamoDBCycleRepository
+from ppai.push.application.daily_summary_builder import DailySummaryBuilder
 from ppai.push.application.nudge_scheduler import NudgeScheduler
 from ppai.push.application.nudge_service import NudgeService
+from ppai.push.application.rescue_evaluator import RescueEvaluator
+from ppai.push.application.zen_session_manager import ZenSessionManager
 from ppai.push.infrastructure.cycle_event_repo import DynamoDBCycleEventRepository
 from ppai.push.infrastructure.dynamodb_preferences_repo import DynamoDBPreferencesRepository
 from ppai.push.infrastructure.config_telegram_adapter import ConfigTelegramAdapter
 from ppai.push.infrastructure.telegram_push_adapter import TelegramPushAdapter
+from ppai.push.infrastructure.zen_telegram_adapter import ZenTelegramAdapter
 from ppai.respond.application.response_service import ResponseService
 from ppai.respond.infrastructure.dynamodb_interaction_event_repo import DynamoDBInteractionEventRepository
 from ppai.respond.infrastructure.response_telegram_adapter import ResponseTelegramAdapter
@@ -87,7 +91,16 @@ def build_app() -> Application:
     )
     response_adapter = ResponseTelegramAdapter(response_service, user_registry)
 
-    # UOW-03: Push & Scheduling
+    # UOW-05: Zen, DailySummary, Rescue
+    zen_manager = ZenSessionManager()
+    daily_summary_builder = DailySummaryBuilder(task_repo)
+    rescue_evaluator = RescueEvaluator()
+
+    # Reconstruct zen sessions from persisted preferences
+    all_prefs = prefs_repo.get_all()
+    zen_manager.reconstruct_from_prefs(all_prefs)
+
+    # UOW-03: Push & Scheduling (extended by UOW-05)
     telegram_push = TelegramPushAdapter(bot_token=settings.telegram_bot_token)
     nudge_service = NudgeService(
         prefs_repo=prefs_repo,
@@ -95,11 +108,18 @@ def build_app() -> Application:
         task_repo=task_repo,
         telegram_port=telegram_push,
         decision_service=decision_service,
+        zen_manager=zen_manager,
+        daily_summary_builder=daily_summary_builder,
+        rescue_evaluator=rescue_evaluator,
     )
     nudge_scheduler = NudgeScheduler(
         nudge_service=nudge_service,
         user_ids_provider=user_registry.get_all,
+        interval_provider=zen_manager.get_min_interval,
     )
+
+    # UOW-05: /zen command
+    zen_adapter = ZenTelegramAdapter(prefs_repo, cycle_event_repo, zen_manager)
 
     application = (
         Application.builder()
@@ -125,6 +145,9 @@ def build_app() -> Application:
 
     # UOW-03: /config command for nudge preferences
     application.add_handler(CommandHandler("config", config_adapter.config_handler))
+
+    # UOW-05: /zen command for zen mode
+    application.add_handler(CommandHandler("zen", zen_adapter.zen_handler))
 
     # UOW-04: Free-text clarify response (lower priority than commands and capture)
     application.add_handler(

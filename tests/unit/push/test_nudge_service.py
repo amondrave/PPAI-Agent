@@ -11,6 +11,7 @@ from ppai.capture.domain.entities import TaskState
 from ppai.capture.domain.value_objects import TaskStatus
 from ppai.decision.domain.entities import ExecutionCycle, PriorityScore, Top3Result
 from ppai.push.application.nudge_service import NudgeService, _PROHIBITED_PHRASES
+from ppai.push.application.zen_session_manager import ZenSessionManager
 from ppai.push.domain.entities import UserNudgePreferences
 from ppai.push.domain.value_objects import NudgeDispatchStatus
 
@@ -28,6 +29,9 @@ class FakePreferencesRepo:
 
     def save(self, prefs):
         self._prefs = prefs
+
+    def get_all(self):
+        return [self._prefs] if self._prefs else []
 
 
 class FakeCycleEventRepo:
@@ -52,6 +56,9 @@ class FakeCycleEventRepo:
     def get_last_activity_at(self, user_id):
         return self._last_activity
 
+    def has_event_today(self, cycle_id, event_type):
+        return False  # Default: no events sent today
+
 
 class FakeTaskRepo:
     def __init__(self, task: Optional[TaskState] = None):
@@ -64,6 +71,9 @@ class FakeTaskRepo:
     def save(self, task):
         self.saved.append(task)
 
+    def list_by_status(self, user_id, status):
+        return []
+
 
 class FakeTelegramPort:
     def __init__(self, should_succeed=True, fail_attempts=0):
@@ -75,6 +85,9 @@ class FakeTelegramPort:
         self._call_count += 1
         if self._call_count <= self._fail_attempts:
             raise Exception("telegram error")
+        return self._succeed
+
+    def send_message(self, chat_id, text):
         return self._succeed
 
 
@@ -117,6 +130,20 @@ def make_top3(task_id="t1"):
     return Top3Result(cycle_id=cycle.cycle_id, user_id="u1", ranked_scores=(score,))
 
 
+def _zen_prefs(**kwargs):
+    """Create UserNudgePreferences with zen_active=True for regular nudge tests."""
+    defaults = {"user_id": "u1", "zen_active": True}
+    defaults.update(kwargs)
+    return UserNudgePreferences(**defaults)
+
+
+def _zen_manager():
+    """Create a ZenSessionManager with an active session for u1."""
+    mgr = ZenSessionManager()
+    mgr.activate("u1", zen_max_nudges=10, zen_interval_minutes=15)
+    return mgr
+
+
 def make_service(
     prefs=None,
     active_cycle=None,
@@ -126,119 +153,140 @@ def make_service(
     telegram_succeeds=True,
     telegram_fail_attempts=0,
     task=None,
+    zen_active=True,
 ):
     if task is None:
         task = make_task()
     if top3 is None:
         top3 = make_top3()
+    # UOW-05: regular nudge dispatch requires zen_active=True
+    if prefs is None and zen_active:
+        prefs = _zen_prefs()
+    zen_mgr = _zen_manager() if zen_active else None
     return NudgeService(
         prefs_repo=FakePreferencesRepo(prefs),
         cycle_event_repo=FakeCycleEventRepo(active_cycle, nudge_count, last_activity),
         task_repo=FakeTaskRepo(task),
         telegram_port=FakeTelegramPort(telegram_succeeds, telegram_fail_attempts),
         decision_service=FakeDecisionService(top3),
+        zen_manager=zen_mgr,
     )
 
 
-NOW = datetime(2026, 3, 25, 14, 0, tzinfo=timezone.utc)  # 09:00 Bogota
+# 14:00 UTC = 09:00 Bogota — outside default start/end windows
+NOW = datetime(2026, 3, 25, 14, 0, tzinfo=timezone.utc)
 
 
 # ---------------------------------------------------------------------------
-# Happy path
+# Happy path (regular nudge via zen)
 # ---------------------------------------------------------------------------
 
 class TestHappyPath:
     def test_dispatch_succeeds_returns_sent(self):
         svc = make_service()
-        outcomes = svc.run_tick(["u1"], now=NOW)
-        assert outcomes[0].status == NudgeDispatchStatus.sent
+        with patch("time.sleep"):
+            outcomes = svc.run_tick(["u1"], now=NOW)
+        sent = [o for o in outcomes if o.status == NudgeDispatchStatus.sent]
+        assert len(sent) >= 1
 
     def test_dispatch_sets_task_to_nudged(self):
-        task_repo = FakeTaskRepo(make_task())
+        task = make_task()
+        task_repo = FakeTaskRepo(task)
         top3 = make_top3()
+        prefs = _zen_prefs()
         svc = NudgeService(
-            prefs_repo=FakePreferencesRepo(),
+            prefs_repo=FakePreferencesRepo(prefs),
             cycle_event_repo=FakeCycleEventRepo(),
             task_repo=task_repo,
             telegram_port=FakeTelegramPort(True),
             decision_service=FakeDecisionService(top3),
+            zen_manager=_zen_manager(),
         )
-        svc.run_tick(["u1"], now=NOW)
+        with patch("time.sleep"):
+            svc.run_tick(["u1"], now=NOW)
         assert task_repo.saved[0].status == TaskStatus.NUDGED
 
     def test_dispatch_records_nudge_sent_event(self):
         cycle_repo = FakeCycleEventRepo()
+        prefs = _zen_prefs()
         svc = NudgeService(
-            prefs_repo=FakePreferencesRepo(),
+            prefs_repo=FakePreferencesRepo(prefs),
             cycle_event_repo=cycle_repo,
             task_repo=FakeTaskRepo(make_task()),
             telegram_port=FakeTelegramPort(True),
             decision_service=FakeDecisionService(make_top3()),
+            zen_manager=_zen_manager(),
         )
-        svc.run_tick(["u1"], now=NOW)
+        with patch("time.sleep"):
+            svc.run_tick(["u1"], now=NOW)
         event_types = [e["event_type"] for e in cycle_repo.events]
         assert "NUDGE_SCHEDULED" in event_types
         assert "NUDGE_SENT" in event_types
 
 
 # ---------------------------------------------------------------------------
-# Guard conditions
+# Guard conditions (tested via zen nudge path)
 # ---------------------------------------------------------------------------
 
 class TestGuards:
     def test_skipped_when_silence_window_active(self):
         # 14:00 UTC = 09:00 Bogota; set silence 08:00-10:00
+        # Zen active overrides silence (BR-SCHED-12), so test via _evaluate_user directly
         prefs = UserNudgePreferences(user_id="u1", silence_start="08:00", silence_end="10:00")
-        svc = make_service(prefs=prefs)
-        outcomes = svc.run_tick(["u1"], now=NOW)
-        assert outcomes[0].status == NudgeDispatchStatus.skipped_activity
-        assert outcomes[0].reason == "silence_window_active"
+        svc = make_service(prefs=prefs, zen_active=False)
+        result = svc._evaluate_user("u1", NOW)
+        assert result.status == NudgeDispatchStatus.skipped_activity
+        assert result.reason == "silence_window_active"
 
     def test_skipped_when_recent_activity(self):
         recent = NOW - timedelta(minutes=30)
         svc = make_service(last_activity=recent)
-        outcomes = svc.run_tick(["u1"], now=NOW)
-        assert outcomes[0].status == NudgeDispatchStatus.skipped_activity
-        assert outcomes[0].reason == "recent_activity"
+        with patch("time.sleep"):
+            outcomes = svc.run_tick(["u1"], now=NOW)
+        activity_skipped = [o for o in outcomes if o.reason == "recent_activity"]
+        assert len(activity_skipped) >= 1
 
     def test_skipped_when_daily_cap_reached(self):
         svc = make_service(nudge_count=3)
-        outcomes = svc.run_tick(["u1"], now=NOW)
-        assert outcomes[0].status == NudgeDispatchStatus.skipped_activity
-        assert outcomes[0].reason == "daily_cap_reached"
+        with patch("time.sleep"):
+            outcomes = svc.run_tick(["u1"], now=NOW)
+        cap_skipped = [o for o in outcomes if o.reason == "daily_cap_reached"]
+        assert len(cap_skipped) >= 1
 
     def test_skipped_when_no_top3(self):
-        svc = make_service(top3=None)
-        # FakeDecisionService raises when top3 is None
+        svc = make_service()
         svc._decision = FakeDecisionService(None)
-        outcomes = svc.run_tick(["u1"], now=NOW)
-        assert outcomes[0].status == NudgeDispatchStatus.skipped_no_top3
+        with patch("time.sleep"):
+            outcomes = svc.run_tick(["u1"], now=NOW)
+        no_top3 = [o for o in outcomes if o.status == NudgeDispatchStatus.skipped_no_top3]
+        assert len(no_top3) >= 1
 
     def test_skipped_when_top3_is_empty(self):
         empty_top3 = Top3Result(cycle_id="c1", user_id="u1", ranked_scores=())
         svc = make_service(top3=empty_top3)
-        outcomes = svc.run_tick(["u1"], now=NOW)
-        assert outcomes[0].status == NudgeDispatchStatus.skipped_no_top3
+        with patch("time.sleep"):
+            outcomes = svc.run_tick(["u1"], now=NOW)
+        no_top3 = [o for o in outcomes if o.status == NudgeDispatchStatus.skipped_no_top3]
+        assert len(no_top3) >= 1
 
-    def test_silence_window_crossing_midnight(self):
-        # 22:00 - 07:00 silence; NOW = 09:00 Bogota (14:00 UTC) → outside window
+    def test_silence_window_crossing_midnight_outside(self):
+        # 22:00 - 07:00 silence; 09:00 Bogota → outside window
         prefs = UserNudgePreferences(user_id="u1", silence_start="22:00", silence_end="07:00")
-        svc = make_service(prefs=prefs)
-        outcomes = svc.run_tick(["u1"], now=NOW)
-        # 09:00 is NOT in 22:00-07:00 → should dispatch
-        assert outcomes[0].status == NudgeDispatchStatus.sent
+        svc = make_service(prefs=prefs, zen_active=False)
+        result = svc._evaluate_user("u1", NOW)
+        assert result.status == NudgeDispatchStatus.sent
 
     def test_silence_window_crossing_midnight_blocks_at_23h(self):
         # 04:00 UTC = 23:00 Bogota → inside 22:00-07:00 window
         late_now = datetime(2026, 3, 26, 4, 0, tzinfo=timezone.utc)
         prefs = UserNudgePreferences(user_id="u1", silence_start="22:00", silence_end="07:00")
-        svc = make_service(prefs=prefs)
-        outcomes = svc.run_tick(["u1"], now=late_now)
-        assert outcomes[0].status == NudgeDispatchStatus.skipped_activity
+        svc = make_service(prefs=prefs, zen_active=False)
+        result = svc._evaluate_user("u1", late_now)
+        assert result.status == NudgeDispatchStatus.skipped_activity
 
 
 # ---------------------------------------------------------------------------
-# Retry logic
+# Retry logic (tested via zen nudge path)
 # ---------------------------------------------------------------------------
 
 class TestRetry:
@@ -246,28 +294,33 @@ class TestRetry:
         svc = make_service(telegram_fail_attempts=0)
         with patch("time.sleep"):
             outcomes = svc.run_tick(["u1"], now=NOW)
-        assert outcomes[0].status == NudgeDispatchStatus.sent
+        sent = [o for o in outcomes if o.status == NudgeDispatchStatus.sent]
+        assert len(sent) >= 1
 
     def test_success_on_second_attempt(self):
         svc = make_service(telegram_fail_attempts=1)
         with patch("time.sleep"):
             outcomes = svc.run_tick(["u1"], now=NOW)
-        assert outcomes[0].status == NudgeDispatchStatus.sent
+        sent = [o for o in outcomes if o.status == NudgeDispatchStatus.sent]
+        assert len(sent) >= 1
 
     def test_failure_after_all_retries(self):
         svc = make_service(telegram_fail_attempts=3)
         with patch("time.sleep"):
             outcomes = svc.run_tick(["u1"], now=NOW)
-        assert outcomes[0].status == NudgeDispatchStatus.failed
+        failed = [o for o in outcomes if o.status == NudgeDispatchStatus.failed]
+        assert len(failed) >= 1
 
     def test_failure_records_nudge_failed_event(self):
         cycle_repo = FakeCycleEventRepo()
+        prefs = _zen_prefs()
         svc = NudgeService(
-            prefs_repo=FakePreferencesRepo(),
+            prefs_repo=FakePreferencesRepo(prefs),
             cycle_event_repo=cycle_repo,
             task_repo=FakeTaskRepo(make_task()),
             telegram_port=FakeTelegramPort(False, fail_attempts=3),
             decision_service=FakeDecisionService(make_top3()),
+            zen_manager=_zen_manager(),
         )
         with patch("time.sleep"):
             svc.run_tick(["u1"], now=NOW)

@@ -16,15 +16,20 @@ class NudgeScheduler:
     Fail-soft: exceptions in a tick are logged but never propagate (DP-PUSH-06).
     """
 
+    _MIN_INTERVAL_MINUTES = 5  # Floor for dynamic interval (DP-SCHED-01)
+
     def __init__(
         self,
         nudge_service,
         user_ids_provider: Callable[[], list[str]],
         tick_interval_minutes: int = 15,
+        interval_provider: Callable[[], int] | None = None,
     ) -> None:
         self._service = nudge_service
         self._user_ids_provider = user_ids_provider
+        self._base_interval_minutes = tick_interval_minutes
         self._interval_seconds = tick_interval_minutes * 60
+        self._interval_provider = interval_provider
         self._stop_event = threading.Event()
         self._thread: threading.Thread | None = None
 
@@ -51,6 +56,7 @@ class NudgeScheduler:
     def _run_loop(self) -> None:
         while not self._stop_event.is_set():
             self._tick()
+            self._recalculate_interval()
             self._stop_event.wait(timeout=self._interval_seconds)
 
     def _tick(self) -> None:
@@ -76,3 +82,17 @@ class NudgeScheduler:
                     )
         except Exception as exc:
             logger.error("nudge_scheduler.tick_error", error=str(exc))
+
+    def _recalculate_interval(self) -> None:
+        """Recalculate tick interval from provider, with floor (DP-SCHED-01)."""
+        if self._interval_provider is None:
+            return
+        try:
+            dynamic = self._interval_provider()
+            if dynamic is not None:
+                minutes = max(dynamic, self._MIN_INTERVAL_MINUTES)
+            else:
+                minutes = self._base_interval_minutes
+            self._interval_seconds = minutes * 60
+        except Exception:
+            pass  # Keep current interval on error

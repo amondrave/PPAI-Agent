@@ -69,14 +69,23 @@
 - [x] Code Generation ✅ 2026-03-26 (Steps 1–15, 75 tests UOW-04, 355 total)
 - [x] Build and Test ✅ 2026-03-26 — 355/355 tests, LocalStack OK, prueba manual Telegram OK, PR #11 mergeado
 
+#### UOW-05 Scheduler Bot Nativo — 🔄 EN CURSO
+- [x] Functional Design ✅ 2026-03-26
+- [x] NFR Requirements ✅ 2026-03-26
+- [x] NFR Design ✅ 2026-03-26
+- [x] Infrastructure Design ✅ 2026-03-27
+- [x] Code Planning ✅ 2026-03-27 (15 steps, ~88 tests)
+- [ ] Code Generation ← EN CURSO
+- [ ] Build and Test
+
 ### 🟡 OPERATIONS PHASE
 - [ ] Operations (PLACEHOLDER)
 
 ## Current Status
-- **Lifecycle Phase**: CONSTRUCTION (UOW-04 COMPLETO)
-- **Current Stage**: UOW-04 Build and Test COMPLETO — 355 tests, PR #11 mergeado, CHANGELOG v0.8.0
-- **Last Session Date**: 2026-03-26
-- **Next**: UOW-05 Scheduler bot nativo
+- **Lifecycle Phase**: CONSTRUCTION (UOW-05 EN CURSO)
+- **Current Stage**: UOW-05 Code Planning — plan pendiente aprobación
+- **Last Session Date**: 2026-03-27
+- **Next**: Aprobación del plan → Code Generation (15 steps, ~88 tests)
 
 ## Pendiente siguiente sesión
 - **UOW-05** — Scheduler bot nativo (recordatorio inicio/cierre + modo zen). Diseño capturado en `aidlc-docs/scheduler-bot-nativo-vision.md`.

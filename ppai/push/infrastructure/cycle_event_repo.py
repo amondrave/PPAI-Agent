@@ -79,6 +79,15 @@ class DynamoDBCycleEventRepository:
         events = item.get("nudgeEvents", [])
         return sum(1 for e in events if e.get("eventType") == "NUDGE_SENT")
 
+    def has_event_today(self, cycle_id: str, event_type: str) -> bool:
+        resp = self._table.get_item(
+            Key={"cycleId": cycle_id},
+            ProjectionExpression="nudgeEvents",
+        )
+        item = resp.get("Item", {})
+        events = item.get("nudgeEvents", [])
+        return any(e.get("eventType") == event_type for e in events)
+
     def get_last_activity_at(self, user_id: str) -> Optional[datetime]:
         """
         Query all events for user and return the most recent activity timestamp.

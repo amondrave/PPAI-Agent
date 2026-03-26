@@ -18,6 +18,10 @@ class PreferencesRepository(Protocol):
         """Persist (create or update) preferences for a user."""
         ...
 
+    def get_all(self) -> list[UserNudgePreferences]:
+        """Return all user preferences. Used for zen session reconstruction at startup."""
+        ...
+
 
 @runtime_checkable
 class CycleEventRepository(Protocol):
@@ -48,6 +52,10 @@ class CycleEventRepository(Protocol):
         """Return the timestamp of the most recent relevant activity for user_id."""
         ...
 
+    def has_event_today(self, cycle_id: str, event_type: str) -> bool:
+        """Check if an event of given type exists in the cycle (idempotency guard)."""
+        ...
+
 
 @runtime_checkable
 class TelegramPushPort(Protocol):
@@ -58,4 +66,8 @@ class TelegramPushPort(Protocol):
         Send a nudge message with inline buttons to the given chat.
         Returns True on success, False on failure.
         """
+        ...
+
+    def send_message(self, chat_id: str, text: str) -> bool:
+        """Send a plain text message (no buttons). Used for daily reminders."""
         ...
