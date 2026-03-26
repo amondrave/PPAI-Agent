@@ -20,6 +20,9 @@ from ppai.push.infrastructure.cycle_event_repo import DynamoDBCycleEventReposito
 from ppai.push.infrastructure.dynamodb_preferences_repo import DynamoDBPreferencesRepository
 from ppai.push.infrastructure.config_telegram_adapter import ConfigTelegramAdapter
 from ppai.push.infrastructure.telegram_push_adapter import TelegramPushAdapter
+from ppai.respond.application.response_service import ResponseService
+from ppai.respond.infrastructure.dynamodb_interaction_event_repo import DynamoDBInteractionEventRepository
+from ppai.respond.infrastructure.response_telegram_adapter import ResponseTelegramAdapter
 from ppai.shared.infrastructure.config import get_settings
 from ppai.shared.infrastructure.dynamodb_client import get_dynamodb_resource, table_name
 from ppai.shared.infrastructure.logging import setup_logging
@@ -73,6 +76,17 @@ def build_app() -> Application:
     decision_adapter = DecisionTelegramAdapter(decision_service, user_registry)
     config_adapter   = ConfigTelegramAdapter(prefs_repo)
 
+    # UOW-04: Respond & State Transition
+    interaction_event_repo = DynamoDBInteractionEventRepository(event_repo)
+    response_service = ResponseService(
+        task_repo=task_repo,
+        event_repo=interaction_event_repo,
+        cycle_event_repo=cycle_event_repo,
+        cycle_repo=cycle_repo,
+        decision_service=decision_service,
+    )
+    response_adapter = ResponseTelegramAdapter(response_service, user_registry)
+
     # UOW-03: Push & Scheduling
     telegram_push = TelegramPushAdapter(bot_token=settings.telegram_bot_token)
     nudge_service = NudgeService(
@@ -98,17 +112,28 @@ def build_app() -> Application:
         MessageHandler(filters.TEXT & ~filters.COMMAND, capture_adapter.message_handler)
     )
 
-    # UOW-02: /top3 command + inline keyboard callbacks
+    # UOW-02: /top3 command
     application.add_handler(CommandHandler("top3", decision_adapter.top3_handler))
+
+    # UOW-04: Respond callbacks (done, confirm_done, cancel_done, snooze, clarify)
     application.add_handler(
         CallbackQueryHandler(
-            decision_adapter.callback_handler,
-            pattern=r"^(done|snooze|clarify):.+$",
+            response_adapter.callback_handler,
+            pattern=r"^(done|confirm_done|cancel_done|snooze|clarify):.+$",
         )
     )
 
     # UOW-03: /config command for nudge preferences
     application.add_handler(CommandHandler("config", config_adapter.config_handler))
+
+    # UOW-04: Free-text clarify response (lower priority than commands and capture)
+    application.add_handler(
+        MessageHandler(
+            filters.TEXT & ~filters.COMMAND,
+            response_adapter.clarify_response_handler,
+        ),
+        group=1,
+    )
 
     application.add_error_handler(capture_adapter.error_handler)
 
