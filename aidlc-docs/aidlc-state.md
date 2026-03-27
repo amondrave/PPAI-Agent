@@ -3,7 +3,7 @@
 ## Project Information
 - **Project Type**: Greenfield
 - **Start Date**: 2026-03-10T21:21:54Z
-- **Current Stage**: CONSTRUCTION - UOW-04 COMPLETO (UOW-01 + UOW-02 + UOW-03 + UOW-04)
+- **Current Stage**: CONSTRUCTION - UOW-05 COMPLETO (UOW-01 + UOW-02 + UOW-03 + UOW-04 + UOW-05)
 
 ## Workspace State
 - **Existing Code**: Yes (UOW-01 + UOW-02 completos, CI/CD verde)
@@ -69,33 +69,34 @@
 - [x] Code Generation ✅ 2026-03-26 (Steps 1–15, 75 tests UOW-04, 355 total)
 - [x] Build and Test ✅ 2026-03-26 — 355/355 tests, LocalStack OK, prueba manual Telegram OK, PR #11 mergeado
 
-#### UOW-05 Scheduler Bot Nativo — 🔄 EN CURSO
+#### UOW-05 Scheduler Bot Nativo — ✅ COMPLETO
 - [x] Functional Design ✅ 2026-03-26
 - [x] NFR Requirements ✅ 2026-03-26
 - [x] NFR Design ✅ 2026-03-26
 - [x] Infrastructure Design ✅ 2026-03-27
 - [x] Code Planning ✅ 2026-03-27 (15 steps, ~88 tests)
-- [ ] Code Generation ← EN CURSO
-- [ ] Build and Test
+- [x] Code Generation ✅ 2026-03-27 (Steps 1–15, E2E + BDD + docs completados)
+- [x] Build and Test ✅ 2026-03-27 — 466/466 tests, regresión verde
 
 ### 🟡 OPERATIONS PHASE
 - [ ] Operations (PLACEHOLDER)
 
 ## Current Status
-- **Lifecycle Phase**: CONSTRUCTION (UOW-05 EN CURSO)
-- **Current Stage**: UOW-05 Code Planning — plan pendiente aprobación
+- **Lifecycle Phase**: CONSTRUCTION (UOW-05 COMPLETO)
+- **Current Stage**: UOW-05 Build and Test COMPLETO
 - **Last Session Date**: 2026-03-27
-- **Next**: Aprobación del plan → Code Generation (15 steps, ~88 tests)
+- **Next**: Deploy prod / verificación ECS con UOW-05 activo
 
 ## Pendiente siguiente sesión
-- **UOW-05** — Scheduler bot nativo (recordatorio inicio/cierre + modo zen). Diseño capturado en `aidlc-docs/scheduler-bot-nativo-vision.md`.
+- **Post UOW-05** — Verificar deploy de prod y decidir siguiente UOW o paso de Operations.
 
 ## Test Coverage (total acumulado)
-- **Total tests**: 355 passing (0 failing)
+- **Total tests**: 466 passing (0 failing)
 - **UOW-01**: 75 tests (52 unit, 14 integration, 9 e2e)
 - **UOW-02**: 93 tests (65 unit, 14 integration, 14 e2e)
 - **UOW-03**: 94 tests (71 unit, 14 integration, 9 e2e) — incluye 11 BDD acceptance tests
 - **UOW-04**: 75 tests (52 unit + 12 BDD, 4 integration, 7 e2e)
+- **UOW-05**: 111 tests (unit + integration + 8 e2e + 6 BDD)
 
 ## CI/CD Pipeline (operativo)
 - **Branch**: main
@@ -126,5 +127,5 @@
 
 ## Proximos Pasos (siguiente sesion)
 
-1. **UOW-05** — Scheduler bot nativo (recordatorio inicio/cierre + modo zen)
-2. **Deploy prod** — verificar ECS task estable con UOW-04 activo
+1. **Deploy prod** — verificar ECS task estable con UOW-05 activo
+2. **Definir siguiente scope** — UOW futuro o transición controlada a Operations

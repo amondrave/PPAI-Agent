@@ -1,5 +1,34 @@
 # AI-DLC Audit Log
 
+## UOW-05 Build and Test — COMPLETO
+**Timestamp**: 2026-03-27T11:44:11Z
+**Stage**: CONSTRUCTION - Build and Test (UOW-05 Scheduler Bot Nativo)
+**Event**: Build and Test completado exitosamente.
+**Evidencia**:
+- 466/466 tests passing (0 failing)
+- 8/8 E2E UOW-05 passing (`tests/e2e/test_scheduler_bot_nativo_flow.py`)
+- 6/6 BDD acceptance E5 passing (`tests/unit/e5/test_us09.py`, `tests/unit/e5/test_us10.py`)
+- Suite completa verde tras alinear regresiones legacy de UOW-03 al modelo `inicio/cierre + zen`
+**Artefacto**: `aidlc-docs/construction/scheduler-bot-nativo/build-and-test/build-and-test-summary.md`
+**Status**: UOW-05 COMPLETO.
+
+---
+
+## UOW-05 Code Generation — COMPLETO
+**Timestamp**: 2026-03-27T11:44:11Z
+**Stage**: CONSTRUCTION - Code Generation (UOW-05 Scheduler Bot Nativo)
+**Event**: Steps 13–15 completados.
+**Artefactos generados**:
+- `tests/e2e/test_scheduler_bot_nativo_flow.py`
+- `tests/features/e5/us09.feature`
+- `tests/features/e5/us10.feature`
+- `tests/unit/e5/test_us09.py`
+- `tests/unit/e5/test_us10.py`
+- `aidlc-docs/construction/scheduler-bot-nativo/code/code-summary.md`
+**Status**: Code Generation completo. Transición a Build and Test.
+
+---
+
 ## UOW-05 Infrastructure Design — Aprobación
 **Timestamp**: 2026-03-27T00:05:00Z
 **Stage**: CONSTRUCTION - Infrastructure Design (UOW-05 Scheduler Bot Nativo)

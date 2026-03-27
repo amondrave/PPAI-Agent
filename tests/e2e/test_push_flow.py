@@ -1,4 +1,4 @@
-"""E2E tests for the push & scheduling tick flow (UOW-03).
+"""E2E tests for the push tick flow under the UOW-05 scheduler model.
 
 Uses moto for DynamoDB and a mock TelegramPushPort to exercise the full
 NudgeService stack against real repository implementations.
@@ -16,13 +16,14 @@ from ppai.capture.infrastructure.dynamodb_task_repo import DynamoDBTaskStateRepo
 from ppai.decision.domain.entities import ExecutionCycle, PriorityScore, Top3Result
 from ppai.decision.domain.value_objects import CycleStatus
 from ppai.push.application.nudge_service import NudgeService
+from ppai.push.application.zen_session_manager import ZenSessionManager
 from ppai.push.domain.entities import UserNudgePreferences
 from ppai.push.domain.value_objects import NudgeDispatchStatus
 from ppai.push.infrastructure.cycle_event_repo import DynamoDBCycleEventRepository
 from ppai.push.infrastructure.dynamodb_preferences_repo import DynamoDBPreferencesRepository
 
 USER = "e2e-push-user-01"
-NOW = datetime(2026, 3, 25, 14, 0, 0, tzinfo=timezone.utc)  # 14:00 UTC = 09:00 America/Bogota
+NOW = datetime(2026, 3, 25, 17, 0, 0, tzinfo=timezone.utc)  # 17:00 UTC = 12:00 America/Bogota
 
 
 def make_task(task_id: str = "t1", status: TaskStatus = TaskStatus.PRIORITIZED) -> TaskState:
@@ -71,15 +72,25 @@ def task_repo(dynamodb_resource):
     return DynamoDBTaskStateRepository(dynamodb_resource.Table("ppai-tasks"))
 
 
-def build_service(prefs_repo, cycle_event_repo, task_repo, telegram_mock, top3_result):
+def build_service(prefs_repo, cycle_event_repo, task_repo, telegram_mock, top3_result, prefs=None):
     decision_mock = MagicMock()
     decision_mock.get_top3.return_value = top3_result
+    prefs = prefs or UserNudgePreferences(user_id=USER, zen_active=True)
+    prefs_repo.save(prefs)
+    zen_manager = ZenSessionManager()
+    if prefs.zen_active:
+        zen_manager.activate(
+            user_id=USER,
+            zen_max_nudges=prefs.zen_max_nudges,
+            zen_interval_minutes=prefs.zen_interval_minutes,
+        )
     return NudgeService(
         prefs_repo=prefs_repo,
         cycle_event_repo=cycle_event_repo,
         task_repo=task_repo,
         telegram_port=telegram_mock,
         decision_service=decision_mock,
+        zen_manager=zen_manager,
     )
 
 
@@ -146,27 +157,28 @@ class TestTickWithTop3:
 # ---------------------------------------------------------------------------
 
 class TestSilenceWindowSkip:
-    def test_skipped_during_silence_window(self, prefs_repo, cycle_event_repo, task_repo):
-        # Silence 08:00 – 16:00 UTC — NOW is 14:00 UTC, inside window
+    def test_zen_sent_during_silence_window_override(self, prefs_repo, cycle_event_repo, task_repo):
+        # Silence 11:00 – 13:00 America/Bogota — NOW is 12:00 local, but zen overrides silence
         prefs = UserNudgePreferences(
             user_id=USER,
-            timezone="UTC",
-            silence_start="08:00",
-            silence_end="16:00",
+            silence_start="11:00",
+            silence_end="13:00",
+            zen_active=True,
         )
-        prefs_repo.save(prefs)
 
         task = make_task()
         task_repo.save(task)
 
         telegram = MagicMock()
-        svc = build_service(prefs_repo, cycle_event_repo, task_repo, telegram, make_top3(task.task_id))
+        telegram.send_nudge.return_value = True
+        svc = build_service(
+            prefs_repo, cycle_event_repo, task_repo, telegram, make_top3(task.task_id), prefs=prefs
+        )
 
         outcomes = svc.run_tick([USER], now=NOW)
 
-        assert outcomes[0].status == NudgeDispatchStatus.skipped_activity
-        assert outcomes[0].reason == "silence_window_active"
-        telegram.send_nudge.assert_not_called()
+        assert outcomes[0].status == NudgeDispatchStatus.sent
+        telegram.send_nudge.assert_called_once()
 
 
 # ---------------------------------------------------------------------------
@@ -207,8 +219,7 @@ class TestRecentActivitySkip:
 
 class TestDailyCapSkip:
     def test_skipped_when_daily_cap_reached(self, prefs_repo, cycle_event_repo, task_repo):
-        prefs = UserNudgePreferences(user_id=USER, max_nudges_per_day=2)
-        prefs_repo.save(prefs)
+        prefs = UserNudgePreferences(user_id=USER, max_nudges_per_day=2, zen_active=True)
 
         task = make_task()
         task_repo.save(task)
@@ -226,7 +237,9 @@ class TestDailyCapSkip:
             cycle_event_repo.record_nudge_event(cycle.cycle_id, "NUDGE_SENT", {"taskId": "t0"})
 
         telegram = MagicMock()
-        svc = build_service(prefs_repo, cycle_event_repo, task_repo, telegram, make_top3(task.task_id))
+        svc = build_service(
+            prefs_repo, cycle_event_repo, task_repo, telegram, make_top3(task.task_id), prefs=prefs
+        )
 
         outcomes = svc.run_tick([USER], now=future_now)
 

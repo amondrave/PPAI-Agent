@@ -153,7 +153,7 @@ El GSI `userId-status-index` **ya existe** en `ppai-tasks` con `projection_type 
   - Registrar `/zen` command handler
 
 ### Step 13: E2E Tests
-- [ ] Crear `tests/e2e/test_scheduler_bot_nativo_e2e.py` (~8 tests)
+- [x] Crear `tests/e2e/test_scheduler_bot_nativo_flow.py` (8 tests)
   - Test recordatorio matutino: simular tick en ventana → mensaje enviado con Top 3
   - Test resumen de cierre: simular tick en ventana → mensaje con lista detallada
   - Test rescue mode: simular día caído → mensaje empático con microacción
@@ -164,16 +164,17 @@ El GSI `userId-status-index` **ya existe** en `ppai-tasks` con `projection_type 
   - Test config motivacion con sanitización
 
 ### Step 14: BDD Acceptance Tests
-- [ ] Crear `tests/bdd/test_scheduler_bot_nativo_bdd.py` (~6 tests)
+- [x] Crear `tests/features/e5/us09.feature`, `tests/features/e5/us10.feature`
+- [x] Crear `tests/unit/e5/test_us09.py`, `tests/unit/e5/test_us10.py` (6 tests)
   - Scenario: "Como usuario, recibo mi Top 3 automáticamente cada mañana" (US-09)
   - Scenario: "Como usuario, recibo resumen de cierre con tareas del día" (US-09)
   - Scenario: "Como usuario, recibo propuesta de rescate en día caído" (US-10)
-  - Scenario: "Como usuario, activo modo zen y recibo nudges frecuentes" (US-06 ext)
+  - Scenario: "Como usuario, activo modo zen y recibo nudges frecuentes" (US-10 / ext US-06)
   - Scenario: "Como usuario, el modo zen ignora mi ventana de silencio"
   - Scenario: "Como usuario, configuro horarios de inicio y cierre"
 
 ### Step 15: Code Summary Documentation
-- [ ] Crear `aidlc-docs/construction/scheduler-bot-nativo/code/code-summary.md`
+- [x] Crear `aidlc-docs/construction/scheduler-bot-nativo/code/code-summary.md`
   - Resumen de archivos creados/modificados
   - Story traceability
   - Test coverage summary
