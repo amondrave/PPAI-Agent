@@ -98,6 +98,52 @@ class TestDynamoDBPreferencesRepository:
         assert found.timezone == "America/Bogota"
         assert found.max_nudges_per_day == 3
 
+    # --- UOW-05 tests ---
+
+    def test_save_and_get_uow05_fields(self, prefs_repo):
+        prefs = UserNudgePreferences(
+            user_id=USER,
+            daily_start_time="09:00",
+            daily_end_time="17:00",
+            zen_active=True,
+            zen_interval_minutes=10,
+            zen_max_nudges=20,
+            motivational_message="Vamos con todo!",
+        )
+        prefs_repo.save(prefs)
+
+        found = prefs_repo.get(USER)
+        assert found.daily_start_time == "09:00"
+        assert found.daily_end_time == "17:00"
+        assert found.zen_active is True
+        assert found.zen_interval_minutes == 10
+        assert found.zen_max_nudges == 20
+        assert found.motivational_message == "Vamos con todo!"
+
+    def test_get_all_returns_all_users(self, prefs_repo):
+        prefs_repo.save(UserNudgePreferences(user_id="user-a"))
+        prefs_repo.save(UserNudgePreferences(user_id="user-b"))
+
+        all_prefs = prefs_repo.get_all()
+        user_ids = {p.user_id for p in all_prefs}
+        assert "user-a" in user_ids
+        assert "user-b" in user_ids
+
+    def test_uow05_defaults_for_legacy_data(self, prefs_repo):
+        # Simulate legacy item without UOW-05 fields
+        prefs_repo._table.put_item(Item={
+            "userId": "legacy-user",
+            "timezone": "America/Bogota",
+            "maxNudgesPerDay": 3,
+        })
+        found = prefs_repo.get("legacy-user")
+        assert found.daily_start_time == "08:00"
+        assert found.daily_end_time == "18:00"
+        assert found.zen_active is False
+        assert found.zen_interval_minutes == 15
+        assert found.zen_max_nudges == 10
+        assert found.motivational_message == "A darle con todo hoy"
+
 
 # ---------------------------------------------------------------------------
 # DynamoDBCycleEventRepository
@@ -175,6 +221,27 @@ class TestDynamoDBCycleEventRepository:
     def test_get_last_activity_at_returns_none_for_new_user(self, cycle_event_repo):
         result = cycle_event_repo.get_last_activity_at("no-activity-user")
         assert result is None
+
+    # --- UOW-05 tests ---
+
+    def test_has_event_today_true(self, cycle_event_repo):
+        cycle = make_cycle()
+        cycle_event_repo.create(cycle)
+        cycle_event_repo.record_nudge_event(cycle.cycle_id, "DAILY_START_SENT", {"sent_at": "2026-03-25T14:00:00"})
+        assert cycle_event_repo.has_event_today(cycle.cycle_id, "DAILY_START_SENT") is True
+
+    def test_has_event_today_false(self, cycle_event_repo):
+        cycle = make_cycle()
+        cycle_event_repo.create(cycle)
+        assert cycle_event_repo.has_event_today(cycle.cycle_id, "DAILY_START_SENT") is False
+
+    def test_has_event_today_with_multiple_events(self, cycle_event_repo):
+        cycle = make_cycle()
+        cycle_event_repo.create(cycle)
+        cycle_event_repo.record_nudge_event(cycle.cycle_id, "NUDGE_SENT", {"taskId": "t1"})
+        cycle_event_repo.record_nudge_event(cycle.cycle_id, "DAILY_END_SENT", {"sent_at": "2026-03-25T23:00:00"})
+        assert cycle_event_repo.has_event_today(cycle.cycle_id, "DAILY_END_SENT") is True
+        assert cycle_event_repo.has_event_today(cycle.cycle_id, "RESCUE_TRIGGERED") is False
 
     def test_get_last_activity_at_returns_most_recent_timestamp(self, cycle_event_repo):
         cycle = make_cycle()

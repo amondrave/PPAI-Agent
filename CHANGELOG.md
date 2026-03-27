@@ -11,6 +11,47 @@ Versionado: [Semantic Versioning](https://semver.org/)
 
 ---
 
+## [v0.9.0] — 2026-03-27
+
+### ✨ Added — UOW-05 Scheduler Bot Nativo
+
+- Implementado **scheduler bot nativo** orientado a dos momentos del día: recordatorio de inicio y resumen de cierre, en lugar de depender solo de nudges regulares por tick.
+- Implementado **recordatorio matutino automático** con Top 3 y mensaje motivacional configurable por usuario (`dailyStartTime`, `motivationalMessage`).
+- Implementado **resumen de cierre del día** con listas detalladas de tareas completadas, pendientes y pospuestas.
+- Implementado **Rescue Mode** para "día caído": si no hubo completadas y todavía quedan tareas, el cierre incluye una propuesta empática con microacción concreta. Se registra evento `RESCUE_TRIGGERED`.
+- Implementado **modo zen nativo** vía comando `/zen` y `/zen off`: activa una sesión temporal con nudges frecuentes, cap configurable e ignorando la ventana de silencio mientras la sesión esté activa.
+- Implementado **scheduler dinámico**: el intervalo del loop baja automáticamente al menor `zen_interval_minutes` entre sesiones activas y vuelve al base cuando no hay zen.
+- Extendido `/config` con nuevos subcomandos:
+  - `/config inicio HH:MM`
+  - `/config cierre HH:MM`
+  - `/config zen_intervalo N`
+  - `/config zen_max N`
+  - `/config motivacion TEXTO`
+- Agregados componentes nuevos en la capa push:
+  - `ZenSessionManager`
+  - `DailySummaryBuilder`
+  - `RescueEvaluator`
+  - `ZenTelegramAdapter`
+- Agregados **8 tests e2e** para el flujo completo de scheduler bot nativo y **6 acceptance tests BDD** para US-09 y US-10. Total del proyecto: **466 tests passing**.
+
+### ⚙️ Infra
+
+- Reutilizado el GSI existente `userId-status-index` en `ppai-tasks` para construir resúmenes diarios sin introducir delta de Terraform.
+- Extendido `DynamoDBPreferencesRepository` con persistencia de campos UOW-05: `dailyStartTime`, `dailyEndTime`, `zenActive`, `zenIntervalMinutes`, `zenMaxNudges`, `motivationalMessage`.
+- Extendido `DynamoDBCycleEventRepository` con `has_event_today()` para guards de idempotencia en `DAILY_START_SENT`, `DAILY_END_SENT` y `RESCUE_TRIGGERED`.
+- Actualizado `main.py` para registrar `/zen`, reconstruir sesiones zen persistidas al arranque y cablear `NudgeService` con summary/rescue/zen.
+
+### 🐛 Fixed
+
+- Alineados los tests legacy de UOW-03 (`US-05`, `US-06`, `test_push_flow`) al comportamiento vigente del producto: flujo automático estándar de inicio/cierre y nudges continuos solo en modo zen.
+
+### 📝 Docs
+
+- Cerrados los artefactos AI-DLC de UOW-05: code summary, build-and-test summary, actualización de `aidlc-state.md`, `audit.md` y plan de code generation.
+- UOW-05 queda marcado como **COMPLETO** en Construction.
+
+---
+
 ## [v0.8.0] — 2026-03-26
 
 ### ✨ Added — UOW-04 Respond & State Transition
@@ -215,7 +256,8 @@ Versionado: [Semantic Versioning](https://semver.org/)
 
 ---
 
-[Unreleased]: https://github.com/amondrave/PPAI-Agent/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/amondrave/PPAI-Agent/compare/v0.9.0...HEAD
+[v0.9.0]: https://github.com/amondrave/PPAI-Agent/compare/v0.8.0...v0.9.0
 [v0.8.0]: https://github.com/amondrave/PPAI-Agent/compare/v0.7.0...v0.8.0
 [v0.7.0]: https://github.com/amondrave/PPAI-Agent/compare/v0.6.1...v0.7.0
 [v0.6.1]: https://github.com/amondrave/PPAI-Agent/compare/v0.6.0...v0.6.1

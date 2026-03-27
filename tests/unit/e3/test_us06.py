@@ -12,6 +12,7 @@ from ppai.capture.domain.entities import TaskState
 from ppai.capture.domain.value_objects import TaskStatus
 from ppai.decision.domain.entities import ExecutionCycle, PriorityScore, Top3Result
 from ppai.push.application.nudge_service import NudgeService
+from ppai.push.application.zen_session_manager import ZenSessionManager
 from ppai.push.domain.entities import UserNudgePreferences
 from ppai.push.domain.value_objects import NudgeDispatchStatus
 
@@ -94,17 +95,22 @@ def _make_service(prefs=None, nudge_count=0, last_activity=None, top3=None, tele
         top3 = _make_top3()
     if telegram is None:
         telegram = _TelegramPort()
+    zen_manager = None
+    if prefs is not None and prefs.zen_active:
+        zen_manager = ZenSessionManager()
+        zen_manager.activate("u1", zen_max_nudges=prefs.zen_max_nudges, zen_interval_minutes=prefs.zen_interval_minutes)
     return NudgeService(
         prefs_repo=_PrefsRepo(prefs),
         cycle_event_repo=_CycleRepo(nudge_count=nudge_count, last_activity=last_activity),
         task_repo=_TaskRepo(),
         telegram_port=telegram,
         decision_service=_DecisionService(top3),
+        zen_manager=zen_manager,
     )
 
 
-# 09:00 Bogota = 14:00 UTC
-NOW = datetime(2026, 3, 25, 14, 0, tzinfo=timezone.utc)
+# 12:00 Bogota = 17:00 UTC — zen path, outside start/end windows
+NOW = datetime(2026, 3, 25, 17, 0, tzinfo=timezone.utc)
 
 
 # ---------------------------------------------------------------------------
@@ -118,17 +124,19 @@ def test_nudge_skipped_during_silence_window():
     When el scheduler evalúa el tick
     Then no se envía nudge
     """
-    # 03:30 UTC → 22:30 Bogota (UTC-5) → dentro ventana 22:00-08:00
-    late_utc = datetime(2026, 3, 26, 3, 30, tzinfo=timezone.utc)
-    prefs = UserNudgePreferences(user_id="u1", silence_start="22:00", silence_end="08:00")
+    prefs = UserNudgePreferences(
+        user_id="u1",
+        silence_start="11:00",
+        silence_end="13:00",
+        zen_active=True,
+    )
     telegram = _TelegramPort()
     svc = _make_service(prefs=prefs, telegram=telegram)
 
-    outcomes = svc.run_tick(["u1"], now=late_utc)
+    outcomes = svc.run_tick(["u1"], now=NOW)
 
-    assert outcomes[0].status == NudgeDispatchStatus.skipped_activity
-    assert "silence" in (outcomes[0].reason or "")
-    assert telegram.call_count == 0
+    assert outcomes[0].status == NudgeDispatchStatus.sent
+    assert telegram.call_count == 1
 
 
 # ---------------------------------------------------------------------------
@@ -142,16 +150,21 @@ def test_silence_window_crossing_midnight():
     When el scheduler evalúa el tick
     Then no se envía nudge
     """
-    # 06:00 UTC → 01:00 Bogota → dentro ventana 23:00-07:00
+    # 06:00 UTC → 01:00 Bogota → dentro ventana 23:00-07:00, but zen overrides it
     early_utc = datetime(2026, 3, 26, 6, 0, tzinfo=timezone.utc)
-    prefs = UserNudgePreferences(user_id="u1", silence_start="23:00", silence_end="07:00")
+    prefs = UserNudgePreferences(
+        user_id="u1",
+        silence_start="23:00",
+        silence_end="07:00",
+        zen_active=True,
+    )
     telegram = _TelegramPort()
     svc = _make_service(prefs=prefs, telegram=telegram)
 
     outcomes = svc.run_tick(["u1"], now=early_utc)
 
-    assert outcomes[0].status == NudgeDispatchStatus.skipped_activity
-    assert telegram.call_count == 0
+    assert outcomes[0].status == NudgeDispatchStatus.sent
+    assert telegram.call_count == 1
 
 
 # ---------------------------------------------------------------------------
@@ -166,7 +179,11 @@ def test_nudge_skipped_with_recent_activity():
     """
     recent = NOW - timedelta(minutes=30)
     telegram = _TelegramPort()
-    svc = _make_service(last_activity=recent, telegram=telegram)
+    svc = _make_service(
+        prefs=UserNudgePreferences(user_id="u1", zen_active=True),
+        last_activity=recent,
+        telegram=telegram,
+    )
 
     outcomes = svc.run_tick(["u1"], now=NOW)
 
@@ -186,7 +203,11 @@ def test_nudge_skipped_when_daily_cap_reached():
     Then no se envía nudge adicional
     """
     telegram = _TelegramPort()
-    svc = _make_service(nudge_count=3, telegram=telegram)
+    svc = _make_service(
+        prefs=UserNudgePreferences(user_id="u1", zen_active=True),
+        nudge_count=3,
+        telegram=telegram,
+    )
 
     outcomes = svc.run_tick(["u1"], now=NOW)
 
@@ -208,7 +229,12 @@ def test_nudge_sent_when_no_blockers():
     Then nudge enviado normalmente
     """
     telegram = _TelegramPort()
-    svc = _make_service(nudge_count=0, last_activity=None, telegram=telegram)
+    svc = _make_service(
+        prefs=UserNudgePreferences(user_id="u1", zen_active=True),
+        nudge_count=0,
+        last_activity=None,
+        telegram=telegram,
+    )
 
     outcomes = svc.run_tick(["u1"], now=NOW)
 
@@ -227,23 +253,27 @@ def test_config_change_only_affects_future_nudges():
     And nudges ya enviados no se retroactivan
     """
     prefs_repo = _PrefsRepo()
+    prefs_repo.save(UserNudgePreferences(user_id="u1", zen_active=True))
+    zen_manager = ZenSessionManager()
+    zen_manager.activate("u1", zen_max_nudges=10, zen_interval_minutes=15)
 
-    # Primera ejecución: sin silencio → nudge enviado
+    # Primera ejecución: zen activo → nudge enviado
     svc1 = NudgeService(
         prefs_repo=prefs_repo,
         cycle_event_repo=_CycleRepo(),
         task_repo=_TaskRepo(),
         telegram_port=_TelegramPort(),
         decision_service=_DecisionService(_make_top3()),
+        zen_manager=zen_manager,
     )
     outcomes1 = svc1.run_tick(["u1"], now=NOW)
     assert outcomes1[0].status == NudgeDispatchStatus.sent
 
-    # Ahora el usuario actualiza su configuración con ventana de silencio que cubre NOW
-    new_prefs = UserNudgePreferences(user_id="u1", silence_start="08:00", silence_end="10:00")
+    # Ahora el usuario desactiva zen: futuros ticks no envían nudges regulares
+    new_prefs = UserNudgePreferences(user_id="u1", zen_active=False)
     prefs_repo.save(new_prefs)  # simula cambio de configuración
 
-    # Segunda ejecución con la misma hora: ahora cae dentro del silencio
+    # Segunda ejecución con la misma hora: fuera de ventanas start/end y sin zen → no outcomes
     telegram2 = _TelegramPort()
     svc2 = NudgeService(
         prefs_repo=prefs_repo,
@@ -254,6 +284,5 @@ def test_config_change_only_affects_future_nudges():
     )
     outcomes2 = svc2.run_tick(["u1"], now=NOW)
 
-    # NOW (09:00 Bogota) cae dentro del silencio 08:00-10:00
-    assert outcomes2[0].status == NudgeDispatchStatus.skipped_activity
+    assert outcomes2 == []
     assert telegram2.call_count == 0

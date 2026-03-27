@@ -13,6 +13,7 @@ from ppai.capture.domain.entities import TaskState
 from ppai.capture.domain.value_objects import TaskStatus
 from ppai.decision.domain.entities import ExecutionCycle, PriorityScore, Top3Result
 from ppai.push.application.nudge_service import NudgeService
+from ppai.push.application.zen_session_manager import ZenSessionManager
 from ppai.push.domain.entities import UserNudgePreferences
 from ppai.push.domain.value_objects import NudgeDispatchStatus
 
@@ -103,8 +104,21 @@ def _make_top3(task_id="t1"):
     return Top3Result(cycle_id=cycle.cycle_id, user_id="u1", ranked_scores=(score,))
 
 
-# 09:00 Bogota = 14:00 UTC  — outside any silence window
-NOW = datetime(2026, 3, 25, 14, 0, tzinfo=timezone.utc)
+# 12:00 Bogota = 17:00 UTC  — outside start/end windows, so zen path is evaluated
+NOW = datetime(2026, 3, 25, 17, 0, tzinfo=timezone.utc)
+
+
+def _make_zen_service(cycle_repo, task_repo, telegram, decision):
+    zen_manager = ZenSessionManager()
+    zen_manager.activate("u1", zen_max_nudges=10, zen_interval_minutes=15)
+    return NudgeService(
+        prefs_repo=_PrefsRepo(UserNudgePreferences(user_id="u1", zen_active=True)),
+        cycle_event_repo=cycle_repo,
+        task_repo=task_repo,
+        telegram_port=telegram,
+        decision_service=decision,
+        zen_manager=zen_manager,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -119,12 +133,11 @@ def test_nudge_sent_with_inline_buttons():
     """
     cycle_repo = _CycleRepo()
     task_repo = _TaskRepo(_make_task())
-    svc = NudgeService(
-        prefs_repo=_PrefsRepo(),
-        cycle_event_repo=cycle_repo,
-        task_repo=task_repo,
-        telegram_port=_TelegramPort(),
-        decision_service=_DecisionService(_make_top3()),
+    svc = _make_zen_service(
+        cycle_repo,
+        task_repo,
+        _TelegramPort(),
+        _DecisionService(_make_top3()),
     )
     outcomes = svc.run_tick(["u1"], now=NOW)
 
@@ -145,12 +158,11 @@ def test_nudge_skipped_when_no_top3():
     Then no se envía mensaje y outcome = skipped_no_top3
     """
     telegram = _TelegramPort()
-    svc = NudgeService(
-        prefs_repo=_PrefsRepo(),
-        cycle_event_repo=_CycleRepo(),
-        task_repo=_TaskRepo(_make_task()),
-        telegram_port=telegram,
-        decision_service=_DecisionService(None),  # raises → no top3
+    svc = _make_zen_service(
+        _CycleRepo(),
+        _TaskRepo(_make_task()),
+        telegram,
+        _DecisionService(None),
     )
     outcomes = svc.run_tick(["u1"], now=NOW)
 
@@ -170,12 +182,11 @@ def test_nudge_retry_on_transient_failure():
     """
     cycle_repo = _CycleRepo()
     telegram = _TelegramPort(fail_attempts=1)  # falla 1 vez, luego ok
-    svc = NudgeService(
-        prefs_repo=_PrefsRepo(),
-        cycle_event_repo=cycle_repo,
-        task_repo=_TaskRepo(_make_task()),
-        telegram_port=telegram,
-        decision_service=_DecisionService(_make_top3()),
+    svc = _make_zen_service(
+        cycle_repo,
+        _TaskRepo(_make_task()),
+        telegram,
+        _DecisionService(_make_top3()),
     )
     with patch("time.sleep"):
         outcomes = svc.run_tick(["u1"], now=NOW)
@@ -198,12 +209,11 @@ def test_nudge_failed_after_all_retries():
     """
     cycle_repo = _CycleRepo()
     task_repo = _TaskRepo(_make_task())
-    svc = NudgeService(
-        prefs_repo=_PrefsRepo(),
-        cycle_event_repo=cycle_repo,
-        task_repo=task_repo,
-        telegram_port=_TelegramPort(always_fail=True),
-        decision_service=_DecisionService(_make_top3()),
+    svc = _make_zen_service(
+        cycle_repo,
+        task_repo,
+        _TelegramPort(always_fail=True),
+        _DecisionService(_make_top3()),
     )
     with patch("time.sleep"):
         outcomes = svc.run_tick(["u1"], now=NOW)
@@ -228,12 +238,11 @@ def test_reengagement_after_24h_inactivity():
     old_activity = NOW - timedelta(hours=25)
     cycle_repo = _CycleRepo(last_activity=old_activity)
     task_repo = _TaskRepo(_make_task())
-    svc = NudgeService(
-        prefs_repo=_PrefsRepo(),
-        cycle_event_repo=cycle_repo,
-        task_repo=task_repo,
-        telegram_port=_TelegramPort(),
-        decision_service=_DecisionService(_make_top3()),
+    svc = _make_zen_service(
+        cycle_repo,
+        task_repo,
+        _TelegramPort(),
+        _DecisionService(_make_top3()),
     )
     outcomes = svc.run_tick(["u1"], now=NOW)
 

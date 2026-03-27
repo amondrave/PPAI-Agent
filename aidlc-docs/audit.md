@@ -1,5 +1,191 @@
 # AI-DLC Audit Log
 
+## UOW-05 Build and Test — COMPLETO
+**Timestamp**: 2026-03-27T11:44:11Z
+**Stage**: CONSTRUCTION - Build and Test (UOW-05 Scheduler Bot Nativo)
+**Event**: Build and Test completado exitosamente.
+**Evidencia**:
+- 466/466 tests passing (0 failing)
+- 8/8 E2E UOW-05 passing (`tests/e2e/test_scheduler_bot_nativo_flow.py`)
+- 6/6 BDD acceptance E5 passing (`tests/unit/e5/test_us09.py`, `tests/unit/e5/test_us10.py`)
+- Suite completa verde tras alinear regresiones legacy de UOW-03 al modelo `inicio/cierre + zen`
+**Artefacto**: `aidlc-docs/construction/scheduler-bot-nativo/build-and-test/build-and-test-summary.md`
+**Status**: UOW-05 COMPLETO.
+
+---
+
+## UOW-05 Code Generation — COMPLETO
+**Timestamp**: 2026-03-27T11:44:11Z
+**Stage**: CONSTRUCTION - Code Generation (UOW-05 Scheduler Bot Nativo)
+**Event**: Steps 13–15 completados.
+**Artefactos generados**:
+- `tests/e2e/test_scheduler_bot_nativo_flow.py`
+- `tests/features/e5/us09.feature`
+- `tests/features/e5/us10.feature`
+- `tests/unit/e5/test_us09.py`
+- `tests/unit/e5/test_us10.py`
+- `aidlc-docs/construction/scheduler-bot-nativo/code/code-summary.md`
+**Status**: Code Generation completo. Transición a Build and Test.
+
+---
+
+## UOW-05 Infrastructure Design — Aprobación
+**Timestamp**: 2026-03-27T00:05:00Z
+**Stage**: CONSTRUCTION - Infrastructure Design (UOW-05 Scheduler Bot Nativo)
+**User Input**: "Apruebo"
+**AI Response**: Infrastructure Design aprobado. Procediendo a Code Planning.
+**Status**: Aprobado.
+
+---
+
+## UOW-05 Infrastructure Design — Completo
+**Timestamp**: 2026-03-27T00:00:00Z
+**Stage**: CONSTRUCTION - Infrastructure Design (UOW-05 Scheduler Bot Nativo)
+**Event**: Infrastructure Design completado. Sin preguntas — delta mínimo y claro.
+**Delta**: GSI `userId-status-index` en ppai-tasks (Terraform), IAM +Query sobre GSI. ppai-preferences +6 atributos (schemaless, no Terraform). Sin cambios en ECS/VPC/CloudWatch/ECR.
+**Extension compliance**: SECURITY — compliant (GSI hereda SSE, IAM least privilege Query-only).
+**Status**: Pendiente aprobación del usuario.
+
+---
+
+## UOW-05 Code Planning — Aprobación
+**Timestamp**: 2026-03-27T00:15:00Z
+**Stage**: CONSTRUCTION - Code Planning (UOW-05 Scheduler Bot Nativo)
+**User Input**: "Apruebo"
+**AI Response**: Plan aprobado. Creando rama feature, luego iniciando Step 1.
+**Status**: Aprobado. Iniciando Code Generation.
+
+---
+
+## UOW-05 Code Planning — Plan Generado
+**Timestamp**: 2026-03-27T00:10:00Z
+**Stage**: CONSTRUCTION - Code Planning (UOW-05 Scheduler Bot Nativo)
+**Event**: Plan de 15 steps generado. Hallazgo: GSI `userId-status-index` y IAM Query ya existen en Terraform — sin delta de infra.
+**Artefacto**: `aidlc-docs/construction/plans/scheduler-bot-nativo-code-generation-plan.md`
+**Scope**: 8 archivos nuevos + 8 modificados, ~88 tests estimados. Sin cambios Terraform.
+**Status**: Pendiente aprobación del usuario.
+
+---
+
+## UOW-05 NFR Design — Aprobación
+**Timestamp**: 2026-03-26T23:55:00Z
+**Stage**: CONSTRUCTION - NFR Design (UOW-05 Scheduler Bot Nativo)
+**User Input**: "Apruebo"
+**AI Response**: NFR Design aprobado. Procediendo a Infrastructure Design.
+**Status**: Aprobado.
+
+---
+
+## UOW-05 NFR Design — Completo
+**Timestamp**: 2026-03-26T23:50:00Z
+**Stage**: CONSTRUCTION - NFR Design (UOW-05 Scheduler Bot Nativo)
+**Event**: NFR Design completado. Sin preguntas — todos los patrones son extensiones directas de UOW-03.
+**Patrones**: DP-SCHED-01 dynamic interval scheduler, DP-SCHED-02 daily event idempotency, DP-SCHED-03 tolerance window matching, DP-SCHED-04 zen session lifecycle, DP-SCHED-05 zen silence override, DP-SCHED-06 rescue detection, DP-SCHED-07 input sanitization.
+**Componentes nuevos**: ZenSessionManager, DailySummaryBuilder, RescueEvaluator, ZenTelegramAdapter.
+**Infra delta**: GSI userId-status-index en ppai-tasks, IAM Query permiso.
+**Extension compliance**: SECURITY — compliant (sanitización input, cifrado heredado, fail-soft, floor 5 min).
+**Status**: Pendiente aprobación del usuario.
+
+---
+
+## UOW-05 NFR Requirements — Aprobación
+**Timestamp**: 2026-03-26T23:40:00Z
+**Stage**: CONSTRUCTION - NFR Requirements (UOW-05 Scheduler Bot Nativo)
+**User Input**: "Apruebo"
+**AI Response**: NFR Requirements aprobado. Procediendo a NFR Design.
+**Status**: Aprobado.
+
+---
+
+## UOW-05 NFR Requirements — Artefactos Generados
+**Timestamp**: 2026-03-26T23:35:00Z
+**Stage**: CONSTRUCTION - NFR Requirements (UOW-05 Scheduler Bot Nativo)
+**User Input**: "Contestadas"
+**Respuestas**: Q1:B (tick dedicado zen), Q2:B (GSI userId-status-index), Q3:A (ZenSession en memoria), Q4:A (solo evento RESCUE_TRIGGERED), Q5:A (sanitización básica max 100 chars).
+**Artefactos generados**:
+- `aidlc-docs/construction/scheduler-bot-nativo/nfr-requirements/nfr-requirements.md`
+- `aidlc-docs/construction/scheduler-bot-nativo/nfr-requirements/tech-stack-decisions.md`
+**Deltas clave**: Scheduler dinámico (intervalo variable, floor 5 min), GSI en ppai-tasks, sanitización de motivational_message, ZenSession en memoria.
+**Extension compliance**: SECURITY — compliant (sanitización input, cifrado heredado, least privilege IAM).
+**Status**: Pendiente aprobación del usuario.
+
+---
+
+## UOW-05 Functional Design — Aprobación
+**Timestamp**: 2026-03-26T23:25:00Z
+**Stage**: CONSTRUCTION - Functional Design (UOW-05 Scheduler Bot Nativo)
+**User Input**: "Apruebo"
+**AI Response**: Functional Design aprobado. Procediendo a NFR Requirements.
+**Status**: Aprobado.
+
+---
+
+## UOW-05 Functional Design — Artefactos Generados
+**Timestamp**: 2026-03-26T23:20:00Z
+**Stage**: CONSTRUCTION - Functional Design (UOW-05 Scheduler Bot Nativo)
+**User Input**: "Listo contestadas"
+**Respuestas**: Q1:C (scheduler+US-09+US-10), Q2:C (Top3+motivacional), Q3:B (lista detallada), Q4:A (±7min), Q5:B (zen intervalo/cap propio), Q6:C (eventos en ExecutionCycle), Q7:B (defaults 08:00/18:00), Q8:B (zen override silencio).
+**Artefactos generados**:
+- `aidlc-docs/construction/scheduler-bot-nativo/functional-design/domain-entities.md`
+- `aidlc-docs/construction/scheduler-bot-nativo/functional-design/business-logic-model.md`
+- `aidlc-docs/construction/scheduler-bot-nativo/functional-design/business-rules.md`
+**Scope final**: Scheduler bot nativo (inicio/cierre) + US-09 (reporte diario detallado) + US-10 (rescue mode). US-11/US-12 quedan para UOW futuro.
+**Extension compliance**: SECURITY — N/A para la mayoría (no hay nuevos data stores, endpoints ni auth flows). BR-SCHED-20 aplica guardrails de tono (no sensitive data en mensajes).
+**Status**: Pendiente aprobación del usuario.
+
+---
+
+## UOW-05 Functional Design — Inicio
+**Timestamp**: 2026-03-26T23:00:00Z
+**Stage**: CONSTRUCTION - Functional Design (UOW-05 Scheduler Bot Nativo)
+**User Input**: "Si listo continuemos en donde nos quedamos , si tienes claro todo ?"
+**AI Response**: Cargado contexto completo (unit-of-work.md, story-map, vision doc, NudgeScheduler, UserNudgePreferences, ConfigTelegramAdapter, NudgeService). Generadas 8 preguntas de clarificación en plan.
+**Artefactos creados**:
+- `aidlc-docs/construction/plans/scheduler-bot-nativo-functional-design-plan.md`
+**Nota de scope**: UOW-05 pivota de "Learn, Report & Rescue" a "Scheduler Bot Nativo" (inicio/cierre + zen + rescue). US-11/US-12 quedan para UOW futuro.
+**Status**: Pendiente respuestas del usuario a 8 preguntas.
+
+---
+
+## UOW-04 NFR Design — COMPLETO
+**Timestamp**: 2026-03-25T22:40:00Z
+**Stage**: CONSTRUCTION - NFR Design (UOW-04 Respond & State Transition)
+**Event**: NFR Design completado. Sin preguntas — todos los patrones heredados o triviales.
+**Patrones**: read-then-write idempotencia, best-effort events, filtro pasivo cooldown, auth en servicio, confirmacion con keyboard dinamico.
+**Infra delta**: TTL en ppai-events (Terraform), campos snoozedUntil/completedAt en ppai-tasks.
+**Extension compliance**: SECURITY — auth centralizada en servicio, no sensitive data en eventos/logs.
+
+---
+
+## UOW-04 NFR Requirements — COMPLETO
+**Timestamp**: 2026-03-25T22:30:00Z
+**Stage**: CONSTRUCTION - NFR Requirements (UOW-04 Respond & State Transition)
+**Event**: NFR Requirements completado. Hereda UOW-01/02/03, 3 deltas identificados.
+**Decisiones**:
+- Latencia callbacks < 500ms (Q1: A)
+- Cooldown snooze precision en minutos suficiente (Q2: A)
+- Retencion eventos 90 dias con DynamoDB TTL (Q3: B)
+- Callback authorization activada (delta vs UOW-02 YAGNI)
+**Extension compliance**: SECURITY — callback auth (BR-RSP-07), no sensitive data in events. TTL en ppai-events para retencion.
+
+---
+
+## UOW-04 Functional Design — COMPLETO
+**Timestamp**: 2026-03-25T22:10:00Z
+**Stage**: CONSTRUCTION - Functional Design (UOW-04 Respond & State Transition)
+**Event**: Functional Design completado con 6 preguntas respondidas.
+**Decisiones clave**:
+- Snooze con cooldown de 1h, luego auto-return a PENDING (Q1: B)
+- Done requiere confirmacion Si/No (Q2: B)
+- Max 3 snoozes, luego auto-clarify (Q3: B)
+- Eventos duales: ppai-events (audit) + ppai-cycles (agregacion diaria) (Q4: C)
+- Clarify response actualiza normalized_text y vuelve a PENDING (Q5: A)
+- Validacion de user_id en callbacks (Q6: A)
+**Artefactos**: `aidlc-docs/construction/respond-state-transition/functional-design/`
+**Extension compliance**: SECURITY — Callback authorization validated (BR-RSP-07), no sensitive data in events (BR-RSP-08). N/A: SECURITY-01 (no new data stores).
+
+---
+
 ## UOW-03 Build and Test — COMPLETO
 **Timestamp**: 2026-03-25T20:25:00Z
 **Stage**: CONSTRUCTION - Build and Test (UOW-03 Push & Scheduling)

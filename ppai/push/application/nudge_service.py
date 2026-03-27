@@ -12,6 +12,9 @@ from ppai.capture.domain.value_objects import TaskStatus
 from ppai.decision.application.decision_service import DecisionService
 from ppai.decision.domain.entities import ExecutionCycle, Top3Result
 from ppai.push.application.ports import CycleEventRepository, PreferencesRepository, TelegramPushPort
+from ppai.push.application.daily_summary_builder import DailySummaryBuilder
+from ppai.push.application.rescue_evaluator import RescueEvaluator
+from ppai.push.application.zen_session_manager import ZenSessionManager
 from ppai.push.domain.entities import NudgeMessage, UserNudgePreferences
 from ppai.push.domain.exceptions import NudgeDispatchFailedError, NoTop3AvailableError
 from ppai.push.domain.value_objects import DispatchOutcome, NudgeDispatchStatus
@@ -52,12 +55,19 @@ class NudgeService:
         task_repo,  # capture TaskStateRepository
         telegram_port: TelegramPushPort,
         decision_service: DecisionService,
+        zen_manager: Optional[ZenSessionManager] = None,
+        daily_summary_builder: Optional[DailySummaryBuilder] = None,
+        rescue_evaluator: Optional[RescueEvaluator] = None,
     ) -> None:
         self._prefs_repo = prefs_repo
         self._cycle_event_repo = cycle_event_repo
         self._task_repo = task_repo
         self._telegram = telegram_port
         self._decision = decision_service
+        # UOW-05
+        self._zen_manager = zen_manager
+        self._summary_builder = daily_summary_builder
+        self._rescue_evaluator = rescue_evaluator
 
     # ------------------------------------------------------------------
     # Public API
@@ -68,33 +78,253 @@ class NudgeService:
         user_ids: list[str],
         now: Optional[datetime] = None,
     ) -> list[DispatchOutcome]:
-        """Evaluate all users for a scheduler tick. Returns one outcome per user."""
+        """Evaluate all users for a scheduler tick. Returns outcomes per user."""
         if now is None:
             now = datetime.now(timezone.utc)
-        outcomes = []
+        outcomes: list[DispatchOutcome] = []
         for user_id in user_ids:
             try:
-                outcome = self._evaluate_user(user_id, now)
+                user_outcomes = self._evaluate_user_uow05(user_id, now)
+                outcomes.extend(user_outcomes)
             except Exception as exc:
                 logger.error("nudge.tick_error", user_id=user_id, error=str(exc))
-                outcome = DispatchOutcome(
+                outcomes.append(DispatchOutcome(
                     status=NudgeDispatchStatus.failed,
                     user_id=user_id,
                     reason=str(exc),
-                )
-            outcomes.append(outcome)
+                ))
         return outcomes
 
     # ------------------------------------------------------------------
-    # Core evaluation
+    # UOW-05: Extended evaluation (daily start/end + zen + rescue)
     # ------------------------------------------------------------------
 
-    def _evaluate_user(self, user_id: str, now: datetime) -> DispatchOutcome:
+    def _evaluate_user_uow05(self, user_id: str, now: datetime) -> list[DispatchOutcome]:
+        """Evaluate daily start, daily end, zen nudges for a user. Returns multiple outcomes."""
+        results: list[DispatchOutcome] = []
         prefs = self._prefs_repo.get(user_id) or UserNudgePreferences(user_id=user_id)
         local_now = self._to_local(now, prefs.timezone)
 
-        # BR-PUSH-08 — silence window
-        if self._is_silence_window(local_now, prefs):
+        # Ensure cycle exists
+        today_str = local_now.strftime("%Y-%m-%d")
+        cycle = self._cycle_event_repo.get_active(user_id, local_now.date())
+        if cycle is None:
+            from ppai.decision.domain.entities import ExecutionCycle
+            cycle = ExecutionCycle(user_id=user_id, date=today_str)
+            self._cycle_event_repo.create(cycle)
+
+        # 1. Evaluate daily start reminder
+        if prefs.is_within_start_window(local_now):
+            outcome = self._evaluate_daily_start(user_id, prefs, now, local_now, cycle)
+            if outcome:
+                results.append(outcome)
+
+        # 2. Evaluate daily end summary + rescue
+        if prefs.is_within_end_window(local_now):
+            outcome = self._evaluate_daily_end(user_id, prefs, now, local_now, cycle)
+            if outcome:
+                results.append(outcome)
+
+        # 3. Zen or regular nudges
+        if prefs.zen_active and self._zen_manager:
+            outcome = self._evaluate_zen_nudge(user_id, prefs, now, local_now, cycle)
+            if outcome:
+                results.append(outcome)
+        # If zen not active, no regular nudges either (BR-SCHED-13)
+
+        return results
+
+    def _evaluate_daily_start(
+        self, user_id, prefs, now, local_now, cycle,
+    ) -> Optional[DispatchOutcome]:
+        """Send morning Top 3 reminder if not already sent today (DP-SCHED-02)."""
+        if self._cycle_event_repo.has_event_today(cycle.cycle_id, "DAILY_START_SENT"):
+            return None
+
+        try:
+            top3 = self._decision.get_top3(user_id, now=now)
+        except Exception:
+            top3 = None
+
+        text = self._build_start_message(top3, prefs.motivational_message)
+        chat_id = str(user_id)
+        sent = self._telegram.send_message(chat_id, text)
+
+        if sent:
+            self._cycle_event_repo.record_nudge_event(
+                cycle_id=cycle.cycle_id,
+                event_type="DAILY_START_SENT",
+                metadata={"sent_at": now.isoformat()},
+            )
+            logger.info("daily_start.sent", user_id=user_id)
+            return DispatchOutcome(
+                status=NudgeDispatchStatus.sent,
+                user_id=user_id,
+                cycle_id=cycle.cycle_id,
+                sent_at=now,
+                reason="daily_start",
+            )
+        return DispatchOutcome(
+            status=NudgeDispatchStatus.failed,
+            user_id=user_id,
+            reason="daily_start_send_failed",
+        )
+
+    def _evaluate_daily_end(
+        self, user_id, prefs, now, local_now, cycle,
+    ) -> Optional[DispatchOutcome]:
+        """Send end-of-day summary with optional rescue (DP-SCHED-02, BR-SCHED-06)."""
+        if self._cycle_event_repo.has_event_today(cycle.cycle_id, "DAILY_END_SENT"):
+            return None
+
+        summary = None
+        if self._summary_builder:
+            summary = self._summary_builder.build(user_id, local_now.date())
+
+        rescue = None
+        if summary and self._rescue_evaluator:
+            try:
+                top3 = self._decision.get_top3(user_id, now=now)
+                top3_tasks = top3.ranked_scores if top3 and not top3.is_empty() else []
+            except Exception:
+                top3_tasks = []
+
+            # Fetch full task objects for rescue evaluator
+            full_tasks = []
+            for score in top3_tasks:
+                task = self._task_repo.get_by_id(user_id, score.task_id)
+                if task:
+                    full_tasks.append(task)
+
+            rescue = self._rescue_evaluator.evaluate(summary, top3=full_tasks)
+            if rescue:
+                summary.rescue_triggered = True
+                summary.rescue_suggestion = rescue
+                if not self._cycle_event_repo.has_event_today(cycle.cycle_id, "RESCUE_TRIGGERED"):
+                    self._cycle_event_repo.record_nudge_event(
+                        cycle_id=cycle.cycle_id,
+                        event_type="RESCUE_TRIGGERED",
+                        metadata={"task_id": rescue.key_task.task_id, "micro_action": rescue.micro_action},
+                    )
+
+        text = self._build_end_message(summary)
+        chat_id = str(user_id)
+        sent = self._telegram.send_message(chat_id, text)
+
+        if sent:
+            self._cycle_event_repo.record_nudge_event(
+                cycle_id=cycle.cycle_id,
+                event_type="DAILY_END_SENT",
+                metadata={"sent_at": now.isoformat(), "rescue_triggered": bool(rescue)},
+            )
+            logger.info("daily_end.sent", user_id=user_id, rescue=bool(rescue))
+            return DispatchOutcome(
+                status=NudgeDispatchStatus.sent,
+                user_id=user_id,
+                cycle_id=cycle.cycle_id,
+                sent_at=now,
+                reason="daily_end",
+            )
+        return DispatchOutcome(
+            status=NudgeDispatchStatus.failed,
+            user_id=user_id,
+            reason="daily_end_send_failed",
+        )
+
+    def _evaluate_zen_nudge(
+        self, user_id, prefs, now, local_now, cycle,
+    ) -> Optional[DispatchOutcome]:
+        """Send zen nudge if interval elapsed and cap not reached (DP-SCHED-04, BR-SCHED-11)."""
+        if not self._zen_manager:
+            return None
+
+        session = self._zen_manager.get(user_id)
+        if session is None:
+            return None
+
+        if session.has_reached_cap:
+            # Auto-deactivate (BR-SCHED-10)
+            prefs.zen_active = False
+            self._prefs_repo.save(prefs)
+            deactivated = self._zen_manager.deactivate(user_id)
+            self._cycle_event_repo.record_nudge_event(
+                cycle_id=cycle.cycle_id,
+                event_type="ZEN_DEACTIVATED",
+                metadata={"nudges_sent": deactivated.nudges_sent if deactivated else 0, "reason": "auto_cap"},
+            )
+            text = f"Modo zen completado. Alcanzaste el máximo de {session.max_nudges} nudges."
+            self._telegram.send_message(str(user_id), text)
+            logger.info("zen.auto_deactivated", user_id=user_id, nudges_sent=session.nudges_sent)
+            return None
+
+        # BR-SCHED-12: zen overrides silence — skip silence check
+        # Proceed with regular nudge logic but skip silence window
+        return self._evaluate_user(user_id, now, skip_silence=True)
+
+    # ------------------------------------------------------------------
+    # UOW-05: Message builders
+    # ------------------------------------------------------------------
+
+    def _build_start_message(self, top3, motivational_message: str) -> str:
+        """Build morning reminder message (BR-SCHED-04, BR-SCHED-18)."""
+        header = f"Buenos días! {motivational_message}\n"
+        if top3 is None or top3.is_empty():
+            return header + "\nNo tienes tareas pendientes por ahora. Puedes capturar nuevas con un mensaje de texto."
+
+        lines = [header, "\nTu Top 3 para hoy:"]
+        for i, score in enumerate(top3.ranked_scores[:3], 1):
+            task = self._task_repo.get_by_id(top3.user_id, score.task_id)
+            title = task.normalized_text if task else score.task_id
+            lines.append(f"{i}. {title}")
+        return "\n".join(lines)
+
+    def _build_end_message(self, summary) -> str:
+        """Build end-of-day summary message (BR-SCHED-05, BR-SCHED-19)."""
+        if summary is None:
+            return "Resumen del día:\n\nNo hay datos disponibles."
+
+        parts = ["Resumen del día:\n"]
+
+        if summary.completed_tasks:
+            parts.append(f"Completadas ({len(summary.completed_tasks)}):")
+            for t in summary.completed_tasks:
+                parts.append(f"  ✓ {t.title}")
+        else:
+            parts.append("Completadas (0)")
+
+        if summary.pending_tasks:
+            parts.append(f"\nPendientes ({len(summary.pending_tasks)}):")
+            for t in summary.pending_tasks:
+                parts.append(f"  • {t.title}")
+
+        if summary.snoozed_tasks:
+            parts.append(f"\nPospuestas ({len(summary.snoozed_tasks)}):")
+            for t in summary.snoozed_tasks:
+                parts.append(f"  ⏸ {t.title}")
+
+        # Rescue section (BR-SCHED-20)
+        if summary.rescue_triggered and summary.rescue_suggestion:
+            r = summary.rescue_suggestion
+            parts.append("\nHoy fue un día difícil, y eso está bien.")
+            parts.append(f"\nSi quieres retomar con algo pequeño:")
+            parts.append(f"  • {r.key_task.title}")
+            parts.append(f"  • {r.micro_action}")
+            parts.append("\nSin presión — mañana es otro día.")
+        else:
+            parts.append("\nDescansa bien!")
+
+        return "\n".join(parts)
+
+    # ------------------------------------------------------------------
+    # Core evaluation (original UOW-03 — used by zen nudges)
+    # ------------------------------------------------------------------
+
+    def _evaluate_user(self, user_id: str, now: datetime, skip_silence: bool = False) -> DispatchOutcome:
+        prefs = self._prefs_repo.get(user_id) or UserNudgePreferences(user_id=user_id)
+        local_now = self._to_local(now, prefs.timezone)
+
+        # BR-PUSH-08 — silence window (skipped for zen override, BR-SCHED-12)
+        if not skip_silence and self._is_silence_window(local_now, prefs):
             logger.info("nudge.skipped_silence", user_id=user_id)
             return DispatchOutcome(
                 status=NudgeDispatchStatus.skipped_activity,
