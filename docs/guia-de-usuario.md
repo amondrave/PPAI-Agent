@@ -183,12 +183,17 @@ Conecta tu calendario para que PPAI vea tus eventos y planifique alrededor de el
 ### Paso a paso
 
 1. Envia `/calendar`
-2. PPAI te muestra una URL y un **codigo de dispositivo** (ej: `WDJB-BXXX`)
-3. Abre la URL (`google.com/device`) en tu navegador
-4. Ingresa el codigo que te dio PPAI
-5. Inicia sesion con Google y autoriza el acceso
-6. Regresa a Telegram y escribe **listo**
-7. PPAI verifica la autorizacion y confirma la conexion
+2. PPAI te muestra un link de **"Autorizar Google Calendar"**
+3. Abre el link en tu navegador e inicia sesion con Google
+4. Autoriza el acceso a tu calendario
+5. Google te redirige a una pagina que **no carga** — eso es normal
+6. En la barra de direccion veras algo como: `http://localhost/?code=4/0Aci98E-xxxx...`
+7. Copia el valor despues de `code=` (o la URL completa, PPAI extrae el codigo solo)
+8. Pega el codigo en el chat de Telegram
+9. PPAI verifica la autorizacion y confirma la conexion mostrando tus proximos eventos
+
+> **Nota:** Tienes 5 minutos para completar el proceso. Si se pasa el tiempo, envia `/calendar` de nuevo.
+> Si algo falla, puedes pegar el codigo con o sin el prefijo `code=`.
 
 ### Que hace PPAI con tu calendario
 
@@ -536,7 +541,7 @@ Si acabas de instalar PPAI, sigue este flujo para tu primer dia:
 1. /start                          → Configura tu perfil (5 min)
 2. Escribe 5-10 tareas pendientes  → PPAI las captura y clasifica
 3. /top3                           → Ve tus 3 prioridades del dia
-4. /calendar                      → Conecta Google Calendar (abre google.com/device)
+4. /calendar                      → Conecta Google Calendar (abre el link y pega el codigo)
 5. /plan                           → Genera tu plan con bloques de tiempo
 6. Trabaja y responde a los botones cuando PPAI te avise
 7. Al final del dia, lee tu resumen de cierre

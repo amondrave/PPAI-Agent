@@ -17,8 +17,15 @@ Versionado: [Semantic Versioning](https://semver.org/)
 
 - Migrado flujo OAuth de Google Calendar de **Device Flow** (tipo "TV y entrada limitada") a **Desktop App** — el device flow no permite el scope `calendar.events` (escritura), solo `calendar.readonly`. Sin este fix, PPAI no podía crear eventos `[PPAI]` en el calendario del usuario.
 - Nuevo flujo para el usuario: `/calendar` muestra un link de autorización → el usuario autoriza en Google → copia el código de la URL de redirección → lo pega en Telegram. Reemplaza el flujo anterior de "ingresa código en google.com/device → escribe listo".
-- Reemplazados `start_device_flow()` y `poll_device_token()` por `generate_auth_url()` y `exchange_code()` en `GoogleOAuthService` — usando `requests.post` directo al token endpoint con `authorization_code` grant y `redirect_uri=http://localhost`.
-- Verificado con test directo contra endpoints de Google: auth URL acepta ambos scopes (`calendar.readonly` + `calendar.events`), token endpoint acepta el client tipo Desktop para `authorization_code` grant.
+- Corregido link de autorización truncado en Telegram — Markdown interpretaba los `_` de la URL (`response_type`, `client_id`) como cursiva. Cambiado a `parse_mode="HTML"` con `<a href>` clicable.
+- Corregido `ConversationHandler` de `/calendar` que se quedaba en estado `ASK_CODE` indefinidamente, bloqueando la captura de tareas. Causa raíz: `conversation_timeout` requiere `JobQueue` (APScheduler) que no está instalado — PTB lo ignoraba silenciosamente.
+- Implementada expiración manual de 5 minutos con timestamp en `user_data` como reemplazo de `conversation_timeout`.
+- Agregado parseo inteligente del código OAuth: acepta URL completa (`http://localhost/?code=XXXX&scope=...`), con prefijo (`code=XXXX`) o código crudo.
+- El handler de código ahora siempre da feedback al usuario: "Código recibido. Verificando...", mensajes de error con causas posibles, y expiración clara. Envuelto en `try/except` global para que nunca falle silenciosamente.
+
+### 📝 Docs
+
+- Actualizada guía de usuario (`docs/guia-de-usuario.md`) con el nuevo flujo Desktop OAuth.
 
 ---
 
