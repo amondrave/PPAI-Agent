@@ -11,6 +11,33 @@ Versionado: [Semantic Versioning](https://semver.org/)
 
 ---
 
+## [v1.3.0] — 2026-03-28
+
+### ✨ Added — ER5 Captura con Asignación Directa a Calendar (HU-R5.1 → HU-R5.3)
+
+- Implementado **parser de duración y horario en texto de captura** (HU-R5.1): al capturar una tarea, PPAI detecta duraciones (`30min`, `1h`, `2 horas`, `45 minutos`) y horarios explícitos (`#15:00-15:30`, `#9:00-10:00`) en el texto. Se extraen sin afectar el título normalizado ni la categoría.
+- Implementada **asignación automática a Calendar con horario explícito** (HU-R5.2): si el usuario captura una tarea con `#HH:MM-HH:MM` y tiene Calendar conectado, PPAI crea el evento `[PPAI]` directamente sin pasar por `/plan`. Valida conflictos con eventos existentes, horarios pasados y ventana de silencio — ofrece alternativas con botones inline.
+- Implementada **sugerencia de horario al capturar tarea con duración** (HU-R5.3): si la tarea incluye duración pero sin horario fijo, PPAI busca el próximo hueco libre en Calendar y sugiere agendarlo con botones [Sí] [Cambiar hora] [No agendar]. Si no hay huecos hoy, sugiere mañana automáticamente.
+- Agregado `ScheduleCallbackAdapter` con handlers para callbacks `schedule_yes`, `schedule_no`, `schedule_suggest`, `schedule_tomorrow` y `schedule_change`.
+- Agregados campos `requested_slot_start` y `requested_slot_end` a `TaskState` y su persistencia en DynamoDB.
+
+### ✨ Added — HU-R1.5 Comando /help
+
+- Implementado comando `/help` que muestra guía organizada por secciones: cómo capturar tareas (texto libre, con duración, con categoría), comandos principales con descripción y ejemplo de uso, y subcomandos disponibles.
+- Soporte para `/help <comando>` — muestra ayuda detallada de un comando específico con todas sus opciones (ej: `/help config`).
+
+### 📝 Docs
+
+- Actualizada guía de usuario (`docs/guia-de-usuario.md`) con sección de captura con duración/horario, ejemplos de asignación directa a Calendar, comando `/help` en referencia de comandos, y tips de uso.
+
+### ⚙️ Infra
+
+- Backlog de refactor actualizado (`specs/refactor-backlog.md`) con épica ER5 (3 HUs) y HU-R1.5 dentro de ER1.
+- Issues sincronizados en Linear: PPA-77 (ER5), PPA-78 (HU-R1.5), PPA-79-81 (HU-R5.1→R5.3).
+- Total del proyecto: **493 tests passing**, 0 failures.
+
+---
+
 ## [v1.2.1] — 2026-03-28
 
 ### 🐛 Fixed

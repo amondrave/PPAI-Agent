@@ -40,6 +40,11 @@ class DynamoDBTaskStateRepository:
             item["daysInTop3"] = task.days_in_top3
         if task.friction_notes:
             item["frictionNotes"] = task.friction_notes
+        # ER5: Time slot fields
+        if task.requested_slot_start is not None:
+            item["requestedSlotStart"] = task.requested_slot_start
+        if task.requested_slot_end is not None:
+            item["requestedSlotEnd"] = task.requested_slot_end
         self._table.put_item(Item=item)
 
     def get_by_id(self, user_id: str, task_id: str) -> TaskState | None:
@@ -138,6 +143,8 @@ class DynamoDBTaskStateRepository:
             ),
             days_in_top3=int(item.get("daysInTop3", 0)),
             friction_notes=list(item.get("frictionNotes", [])),
+            requested_slot_start=item.get("requestedSlotStart"),
+            requested_slot_end=item.get("requestedSlotEnd"),
             created_at=datetime.fromisoformat(item["createdAt"]),
             updated_at=datetime.fromisoformat(item["updatedAt"]),
         )

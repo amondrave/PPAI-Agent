@@ -18,6 +18,7 @@ from ppai.capture.application.capture_service import CaptureService
 from ppai.capture.infrastructure.dynamodb_dedup_repo import DynamoDBDedupRepository
 from ppai.capture.infrastructure.dynamodb_event_repo import DynamoDBEventRepository
 from ppai.capture.infrastructure.dynamodb_task_repo import DynamoDBTaskStateRepository
+from ppai.capture.infrastructure.schedule_callback_adapter import ScheduleCallbackAdapter
 from ppai.capture.infrastructure.telegram_adapter import TelegramAdapter
 from ppai.decision.application.decision_service import DecisionService
 from ppai.decision.domain.scoring_engine import ScoringEngine
@@ -26,6 +27,7 @@ from ppai.decision.infrastructure.dynamodb_cycle_repo import DynamoDBCycleReposi
 from ppai.profile.application.onboarding_service import OnboardingService
 from ppai.profile.application.profile_service import ProfileService
 from ppai.profile.infrastructure.dynamodb_profile_repo import DynamoDBProfileRepository
+from ppai.profile.infrastructure.help_telegram_adapter import HelpTelegramAdapter
 from ppai.profile.infrastructure.onboarding_telegram_adapter import OnboardingTelegramAdapter
 from ppai.profile.infrastructure.profile_telegram_adapter import ProfileTelegramAdapter
 from ppai.push.application.block_reminder_service import BlockReminderService
@@ -183,6 +185,18 @@ def build_app() -> Application:
         category_classifier=category_classifier,
         calendar_sync=calendar_sync,
     )
+
+    # ER5: Schedule callback adapter (calendar assignment after capture)
+    schedule_adapter = ScheduleCallbackAdapter(
+        calendar_service=calendar_service,
+        block_planner=block_planner,
+        task_repo=task_repo,
+        profile_service=profile_service,
+    )
+    capture_adapter._schedule_adapter = schedule_adapter
+
+    # HU-R1.5: /help command
+    help_adapter = HelpTelegramAdapter()
 
     # UOW-05: Zen, DailySummary, Rescue
     zen_manager = ZenSessionManager()
@@ -349,8 +363,19 @@ def build_app() -> Application:
     # UOW-05: /zen command for zen mode
     application.add_handler(CommandHandler("zen", zen_adapter.zen_handler))
 
+    # HU-R1.5: /help command
+    application.add_handler(CommandHandler("help", help_adapter.help_handler))
+
     # ER2: /plan command
     application.add_handler(CommandHandler("plan", calendar_adapter.plan_handler))
+
+    # ER5: Schedule callbacks (calendar assignment after capture)
+    application.add_handler(
+        CallbackQueryHandler(
+            schedule_adapter.callback_handler,
+            pattern=r"^schedule_(yes|no|suggest|tomorrow|change):.+$",
+        )
+    )
 
     # UOW-04: Free-text clarify response (lower priority than commands and capture)
     application.add_handler(
