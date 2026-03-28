@@ -19,6 +19,15 @@ from ppai.shared.domain.base_entity import generate_id
 
 logger = logging.getLogger(__name__)
 
+# ER5: Time slot pattern — #HH:MM-HH:MM (e.g., #15:00-15:30)
+_TIME_SLOT_RE = re.compile(r"#(\d{1,2}:\d{2})-(\d{1,2}:\d{2})")
+
+# ER5: Duration patterns — "30min", "1h", "1.5h", "45 minutos", "2 horas"
+_DURATION_PATTERNS: list[tuple[re.Pattern[str], str]] = [
+    (re.compile(r"(\d+(?:\.\d+)?)\s*h(?:oras?)?\b", re.IGNORECASE), "hours"),
+    (re.compile(r"(\d+)\s*min(?:utos?)?\b", re.IGNORECASE), "minutes"),
+]
+
 _HASHTAG_RE = re.compile(r"#(\w+)")
 _TEMPORAL_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"\bpara\s+mañana\b", re.IGNORECASE), "tomorrow"),
@@ -71,6 +80,11 @@ class CaptureService:
 
         for line in lines:
             original, normalized = self._normalize(line)
+
+            # ER5: Extract time slot and duration BEFORE tag/deadline extraction
+            normalized, slot_start, slot_end = self._extract_time_slot(normalized)
+            normalized, explicit_duration = self._extract_duration(normalized)
+
             normalized, tag, deadline = self._extract_tag_deadline(normalized)
 
             if self._check_dedup(user_id, original):
@@ -89,6 +103,22 @@ class CaptureService:
                 deadline=deadline,
                 intent_id=intent.intent_id,
             )
+
+            # ER5: Set time slot or explicit duration on task
+            if slot_start and slot_end:
+                task.requested_slot_start = slot_start
+                task.requested_slot_end = slot_end
+                # Calculate estimated_minutes from slot
+                try:
+                    sh, sm = map(int, slot_start.split(":"))
+                    eh, em = map(int, slot_end.split(":"))
+                    task.estimated_minutes = (eh * 60 + em) - (sh * 60 + sm)
+                except (ValueError, TypeError):
+                    pass
+                self._task_repo.save(task)
+            elif explicit_duration:
+                task.estimated_minutes = explicit_duration
+                self._task_repo.save(task)
             self._classify_task(task)
             result.created.append(task)
             self._emit_event(task, correlation_id)
@@ -193,11 +223,44 @@ class CaptureService:
         normalized = " ".join(line.split())
         return original, normalized
 
+    def _extract_time_slot(self, text: str) -> tuple[str, str | None, str | None]:
+        """ER5: Extract explicit time slot (#HH:MM-HH:MM) from text."""
+        match = _TIME_SLOT_RE.search(text)
+        if not match:
+            return text, None, None
+        slot_start = match.group(1)
+        slot_end = match.group(2)
+        text = text[: match.start()] + text[match.end() :]
+        text = " ".join(text.split())
+        return text, slot_start, slot_end
+
+    def _extract_duration(self, text: str) -> tuple[str, int | None]:
+        """ER5: Extract duration (30min, 1h, 45 minutos) from text."""
+        for pattern, kind in _DURATION_PATTERNS:
+            match = pattern.search(text)
+            if not match:
+                continue
+            value = float(match.group(1))
+            minutes = int(value * 60) if kind == "hours" else int(value)
+            if minutes <= 0:
+                continue
+            text = text[: match.start()] + text[match.end() :]
+            text = " ".join(text.split())
+            return text, minutes
+        return text, None
+
     def _extract_tag_deadline(
         self, text: str
     ) -> tuple[str, str | None, datetime | None]:
         tag = None
         deadline = None
+
+        # ER5: Extract time slot BEFORE hashtag extraction (it uses # prefix too)
+        slot_match = _TIME_SLOT_RE.search(text)
+        if slot_match:
+            # Remove the time slot from text so _HASHTAG_RE doesn't eat it
+            text = text[: slot_match.start()] + text[slot_match.end() :]
+            text = " ".join(text.split())
 
         tag_match = _HASHTAG_RE.search(text)
         if tag_match:

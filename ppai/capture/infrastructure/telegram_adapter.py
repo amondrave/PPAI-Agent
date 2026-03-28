@@ -19,10 +19,13 @@ class TelegramAdapter:
         capture_service: CaptureService,
         rate_limiter: InMemoryRateLimiter,
         user_registry: UserRegistry | None = None,
+        schedule_adapter: object | None = None,
     ) -> None:
         self._capture_service = capture_service
         self._rate_limiter = rate_limiter
         self._user_registry = user_registry
+        # ER5: Optional schedule adapter for post-capture calendar integration
+        self._schedule_adapter = schedule_adapter
 
     async def message_handler(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
@@ -47,6 +50,26 @@ class TelegramAdapter:
             result = self._capture_service.process_message(user_id, text)
             confirmation = self._capture_service.build_confirmation(result)
             await update.message.reply_text(confirmation)
+
+            # ER5: Trigger calendar scheduling for tasks with time info
+            if self._schedule_adapter and result.created:
+                for task in result.created:
+                    if task.requested_slot_start or task.estimated_minutes:
+                        try:
+                            await self._schedule_adapter.handle_post_capture(
+                                update=update,
+                                user_id=user_id,
+                                task_id=task.task_id,
+                                task_title=task.normalized_text,
+                                estimated_minutes=task.estimated_minutes,
+                                slot_start=task.requested_slot_start,
+                                slot_end=task.requested_slot_end,
+                            )
+                        except Exception:
+                            logger.warning(
+                                "ER5: Schedule post-capture failed",
+                                extra={"task_id": task.task_id},
+                            )
         except InvalidInputError as e:
             await update.message.reply_text(str(e))
         except Exception:

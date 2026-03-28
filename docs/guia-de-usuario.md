@@ -131,6 +131,36 @@ Puedes agregar contexto extra:
 | `urgente` | `Urgente: fix en produccion` | Deadline: hoy |
 | `para 15/04` | `Preparar slides para 15/04` | Deadline: 15 de abril |
 
+### Capturar con duracion o horario (ER5)
+
+Si incluyes duracion o un horario explicito al capturar, PPAI puede agendar la tarea directamente en tu Google Calendar — sin pasar por `/plan`.
+
+| Formato | Ejemplo | Que pasa |
+|---------|---------|----------|
+| `30min`, `1h`, `2 horas` | `Leer libro 1h #learning` | PPAI sugiere el proximo hueco libre con botones [Si] [Cambiar hora] [No agendar] |
+| `#HH:MM-HH:MM` | `Llamar dentista #15:00-15:30` | PPAI crea el evento directo en Calendar |
+
+**Reglas de asignacion directa:**
+
+- Si el horario ya paso, PPAI ofrece: [Hoy otro horario] [Manana mismo horario]
+- Si hay un conflicto con otro evento, PPAI te avisa y sugiere buscar un hueco libre
+- Si no queda tiempo hoy para la duracion, se sugiere manana automaticamente
+- Se respetan tu horario laboral y bloques protegidos
+- Si no tienes Calendar conectado, la tarea se captura normalmente y PPAI te sugiere `/calendar`
+
+**Ejemplos completos:**
+
+```
+Practicar guitarra 30min #hobby
+→ Capturado. Agendar de 15:00 a 15:30? [Si] [Cambiar hora] [No agendar]
+
+Reunion con disenador #14:00-15:00 #work
+→ Capturado. Agendado de 14:00 a 15:00 en tu calendario.
+
+Estudiar React 2 horas #learning
+→ Capturado. No queda tiempo hoy. Agendar manana de 09:00 a 11:00? [Si] [No agendar]
+```
+
 ---
 
 ## 3. Top 3 del dia
@@ -455,7 +485,11 @@ PPAI no te enviara notificaciones en dias libres ni en festivos de tu pais.
 | `/zen off` | Desactivar modo zen |
 | `/libre` | Gestionar dias libres |
 | `/cancel` | Cancelar onboarding |
+| `/help` | Muestra guia de comandos y como capturar |
+| `/help <comando>` | Ayuda detallada de un comando (ej: `/help config`) |
 | *(texto libre)* | Capturar tarea(s) |
+| *(texto con duracion)* | Capturar + sugerir horario (ej: `Leer 30min #learning`) |
+| *(texto con horario)* | Capturar + agendar directo (ej: `Gym #18:00-19:00 #health`) |
 
 ---
 
@@ -492,6 +526,14 @@ Si una tarea te tiene paralizado, presiona **[Pomodoro 25min]** en el detector d
 ### Revisa el reporte semanal
 
 Cada lunes recibes un analisis de tu semana. Leelo con calma: los patrones que PPAI detecta (como "los jueves no completaste nada") son oro para mejorar.
+
+### Captura y agenda en un solo mensaje
+
+Si ya conectaste Calendar, incluye duracion o horario al capturar: `Practicar guitarra 30min #hobby` o `Gym #18:00-19:00 #health`. PPAI lo captura y lo agenda sin necesidad de `/plan`. Es la forma mas rapida de organizar tu dia.
+
+### Usa /help si te pierdes
+
+Escribe `/help` en cualquier momento para ver todos los comandos disponibles con ejemplos. Para detalles de un comando especifico: `/help config`.
 
 ### Experimenta con estilos
 
