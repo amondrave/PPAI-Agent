@@ -40,6 +40,12 @@ variable "fernet_encryption_key" {
   sensitive   = true
 }
 
+variable "anthropic_api_key" {
+  description = "Anthropic API key for Claude LLM (ER4)"
+  type        = string
+  sensitive   = true
+}
+
 variable "vpc_cidr" {
   description = "CIDR block for the VPC"
   type        = string

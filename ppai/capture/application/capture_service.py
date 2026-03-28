@@ -47,12 +47,17 @@ class CaptureService:
         dedup_repo: DedupRepository,
         active_task_limit: int = 50,
         category_classifier: object | None = None,
+        task_analyzer: object | None = None,
+        profile_repo: object | None = None,
     ) -> None:
         self._task_repo = task_repo
         self._event_repo = event_repo
         self._dedup_repo = dedup_repo
         self._active_task_limit = active_task_limit
         self._category_classifier = category_classifier
+        # ER4: LLM-based task analyzer (optional, falls back to regex)
+        self._task_analyzer = task_analyzer
+        self._profile_repo = profile_repo
         # Optional hook: called with user_id after at least one task is captured.
         # Used by DecisionService to invalidate the Top 3 cache (UOW-02).
         self.on_task_captured: callable[[str], None] | None = None
@@ -125,7 +130,24 @@ class CaptureService:
         return " ".join(parts)
 
     def _classify_task(self, task: TaskState) -> None:
-        """Classify the task category and estimate duration using CategoryClassifier."""
+        """Classify task: try LLM first (ER4), fall back to regex (ER2)."""
+        # ER4: Try LLM-based analysis first
+        if self._task_analyzer is not None:
+            try:
+                occupation = self._get_user_occupation(task.user_id)
+                analysis = self._task_analyzer.analyze(task.normalized_text, occupation)
+                if analysis is not None:
+                    task.category = analysis.category
+                    task.estimated_minutes = analysis.estimated_minutes
+                    self._task_repo.save(task)
+                    return
+            except Exception:
+                logger.warning(
+                    "LLM task analysis failed, using regex fallback",
+                    extra={"task_id": task.task_id},
+                )
+
+        # Fallback: regex-based classifier (ER2)
         if self._category_classifier is None:
             return
         try:
@@ -138,6 +160,15 @@ class CaptureService:
                 "Failed to classify task",
                 extra={"task_id": task.task_id},
             )
+
+    def _get_user_occupation(self, user_id: str) -> str:
+        if not self._profile_repo:
+            return ""
+        try:
+            profile = self._profile_repo.get(user_id)
+            return profile.occupation if profile else ""
+        except Exception:
+            return ""
 
     # -- Private methods -------------------------------------------------------
 

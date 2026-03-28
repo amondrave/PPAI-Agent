@@ -33,6 +33,7 @@ resource "aws_ecs_task_definition" "bot" {
       { name = "GOOGLE_CLIENT_ID", value = var.google_client_id },
       { name = "GOOGLE_CLIENT_SECRET", value = var.google_client_secret },
       { name = "FERNET_ENCRYPTION_KEY", value = var.fernet_encryption_key },
+      { name = "ANTHROPIC_API_KEY", value = var.anthropic_api_key },
     ]
 
     logConfiguration = {

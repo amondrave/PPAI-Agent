@@ -72,6 +72,8 @@ class NudgeService:
         friction_detector: Optional[FrictionDetector] = None,
         weekly_reporter: Optional[WeeklyReporter] = None,
         midday_checkin: Optional[MiddayCheckin] = None,
+        # ER4: LLM message composer
+        message_composer=None,
     ) -> None:
         self._prefs_repo = prefs_repo
         self._cycle_event_repo = cycle_event_repo
@@ -90,6 +92,8 @@ class NudgeService:
         self._friction_detector = friction_detector
         self._weekly_reporter = weekly_reporter
         self._midday_checkin = midday_checkin
+        # ER4: LLM message composer
+        self._message_composer = message_composer
 
     # ------------------------------------------------------------------
     # Public API
@@ -349,11 +353,34 @@ class NudgeService:
     # ------------------------------------------------------------------
 
     def _build_start_message(self, top3, motivational_message: str, user_id: str | None = None) -> str:
-        """Build morning reminder message (BR-SCHED-04, BR-SCHED-18). Adapts tone to profile."""
+        """Build morning reminder message (BR-SCHED-04, BR-SCHED-18). Tries LLM first (ER4)."""
         profile = self._get_user_profile(user_id) if user_id else None
         name = profile.name if profile else ""
         style = profile.communication_style if profile else None
 
+        # ER4: Try LLM-generated message
+        if self._message_composer and profile:
+            try:
+                from ppai.intelligence.domain.entities import MessageRequest
+                tasks = []
+                if top3 and not top3.is_empty():
+                    for score in top3.ranked_scores[:3]:
+                        task = self._task_repo.get_by_id(top3.user_id, score.task_id)
+                        if task:
+                            tasks.append(task.normalized_text)
+                request = MessageRequest(
+                    user_name=name,
+                    communication_style=style.value if style else "gentle",
+                    occupation=profile.occupation or "",
+                    top3_tasks=tasks,
+                )
+                llm_text = self._message_composer.compose_daily_start(request)
+                if llm_text:
+                    return llm_text
+            except Exception:
+                logger.warning("er4.start_message_llm_failed", extra={"user_id": user_id})
+
+        # Fallback: static templates
         if style == CommunicationStyle.GENTLE:
             header = f"Buenos días {name}, hoy tienes un gran día por delante!\n"
         elif style == CommunicationStyle.DIRECT:
@@ -381,11 +408,34 @@ class NudgeService:
         return "\n".join(lines)
 
     def _build_end_message(self, summary, user_id: str | None = None) -> str:
-        """Build end-of-day summary message (BR-SCHED-05, BR-SCHED-19). Adapts tone to profile."""
+        """Build end-of-day summary message (BR-SCHED-05, BR-SCHED-19). Tries LLM first (ER4)."""
         profile = self._get_user_profile(user_id) if user_id else None
         name = profile.name if profile else ""
         style = profile.communication_style if profile else None
 
+        # ER4: Try LLM-generated message
+        if self._message_composer and profile and summary:
+            try:
+                from ppai.intelligence.domain.entities import MessageRequest
+                request = MessageRequest(
+                    user_name=name,
+                    communication_style=style.value if style else "gentle",
+                    occupation=profile.occupation or "",
+                    completed_today=len(summary.completed_tasks),
+                    pending_today=len(summary.pending_tasks),
+                    snoozed_today=len(summary.snoozed_tasks),
+                )
+                llm_text = self._message_composer.compose_daily_end(request)
+                if llm_text:
+                    # Append rescue section if triggered (still static — critical flow)
+                    if summary.rescue_triggered and summary.rescue_suggestion:
+                        r = summary.rescue_suggestion
+                        llm_text += f"\n\nRescate sugerido: {r.key_task.title}\n  - {r.micro_action}"
+                    return llm_text
+            except Exception:
+                logger.warning("er4.end_message_llm_failed", extra={"user_id": user_id})
+
+        # Fallback: static templates
         if summary is None:
             return "Resumen del día:\n\nNo hay datos disponibles."
 
@@ -589,12 +639,27 @@ class NudgeService:
         is_reengagement: bool = False,
         user_id: str | None = None,
     ) -> NudgeMessage:
-        """Build nudge message with tone adapted to profile (BR-PUSH-09, BR-PUSH-10)."""
+        """Build nudge message with tone adapted to profile (BR-PUSH-09, BR-PUSH-10). Tries LLM (ER4)."""
         title = task.normalized_text
         profile = self._get_user_profile(user_id) if user_id else None
         style = profile.communication_style if profile else None
         name = profile.name if profile else ""
 
+        # ER4: Try LLM nudge
+        if self._message_composer and profile and not is_reengagement:
+            try:
+                llm_text = self._message_composer.compose_nudge(
+                    user_name=name,
+                    style=style.value if style else "gentle",
+                    task_title=title,
+                )
+                if llm_text:
+                    reason = f"Va primero porque vence el {task.deadline}" if task.deadline else "Es la tarea con mayor prioridad ahora"
+                    return NudgeMessage(task_id=task.task_id, task_title=llm_text, priority_reason=reason)
+            except Exception:
+                logger.warning("er4.nudge_llm_failed", extra={"user_id": user_id})
+
+        # Fallback: static templates
         if is_reengagement:
             if style == CommunicationStyle.GENTLE:
                 text = f"{name}, cuando estes listo, puedes retomar con: {title}"

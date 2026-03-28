@@ -61,3 +61,9 @@ variable "fernet_encryption_key" {
   type        = string
   sensitive   = true
 }
+
+variable "anthropic_api_key" {
+  description = "Anthropic API key for Claude LLM (ER4)"
+  type        = string
+  sensitive   = true
+}
