@@ -49,6 +49,7 @@ class TaskState:
     deadline: datetime | None = None
     requested_slot_start: str | None = None  # HH:MM format, ER5
     requested_slot_end: str | None = None    # HH:MM format, ER5
+    has_explicit_time: bool = False           # True when user provided duration/slot, ER5
     snooze_count: int = 0
     snoozed_until: datetime | None = None
     completed_at: datetime | None = None

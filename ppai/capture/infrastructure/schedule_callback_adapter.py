@@ -48,6 +48,11 @@ class ScheduleCallbackAdapter:
         if not update.message:
             return
 
+        logger.info(
+            "ER5: handle_post_capture user=%s task=%s slot=%s-%s duration=%s",
+            user_id, task_id, slot_start, slot_end, estimated_minutes,
+        )
+
         if not self._calendar_service.is_connected(user_id):
             # No calendar → only mention if they had time info
             if slot_start or estimated_minutes:
