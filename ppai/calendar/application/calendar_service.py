@@ -90,6 +90,7 @@ class CalendarService:
         start: str,
         end: str,
         description: str | None = None,
+        timezone_name: str = "UTC",
     ) -> str | None:
         """Create a calendar event. Returns event_id or None on failure."""
         auth = self._auth_repo.get(user_id)
@@ -108,7 +109,8 @@ class CalendarService:
                 updated_at=auth.updated_at,
             )
             return self._calendar_provider.create_event(
-                decrypted_auth, title, start, end, description
+                decrypted_auth, title, start, end, description,
+                timezone_name=timezone_name,
             )
         except Exception as exc:
             logger.error("Error creating calendar event", extra={"user_id": user_id, "error": str(exc)})

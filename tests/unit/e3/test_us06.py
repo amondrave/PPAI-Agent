@@ -273,7 +273,8 @@ def test_config_change_only_affects_future_nudges():
     new_prefs = UserNudgePreferences(user_id="u1", zen_active=False)
     prefs_repo.save(new_prefs)  # simula cambio de configuración
 
-    # Segunda ejecución con la misma hora: fuera de ventanas start/end y sin zen → no outcomes
+    # Segunda ejecución con la misma hora: zen desactivado → nudge regular se envía
+    # (antes este test validaba el bug donde nudges regulares nunca se enviaban)
     telegram2 = _TelegramPort()
     svc2 = NudgeService(
         prefs_repo=prefs_repo,
@@ -284,5 +285,6 @@ def test_config_change_only_affects_future_nudges():
     )
     outcomes2 = svc2.run_tick(["u1"], now=NOW)
 
-    assert outcomes2 == []
-    assert telegram2.call_count == 0
+    # With zen off, regular nudges now work correctly
+    assert len(outcomes2) == 1
+    assert outcomes2[0].status == NudgeDispatchStatus.sent

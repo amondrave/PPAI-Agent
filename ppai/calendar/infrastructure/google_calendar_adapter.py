@@ -20,12 +20,13 @@ _SCOPES = [
 class GoogleCalendarAdapter:
     """Implements CalendarProvider using the Google Calendar API."""
 
-    def get_events(self, auth: CalendarAuth, date: str) -> list[CalendarEvent]:
+    def get_events(self, auth: CalendarAuth, date: str, timezone_name: str = "UTC") -> list[CalendarEvent]:
         """Query primary calendar for events on the given date (YYYY-MM-DD)."""
         try:
             service = self._build_service(auth)
-            time_min = f"{date}T00:00:00Z"
-            time_max = f"{date}T23:59:59Z"
+            # Use timezone-aware boundaries so we get correct events for user's local day
+            time_min = f"{date}T00:00:00"
+            time_max = f"{date}T23:59:59"
 
             result = (
                 service.events()
@@ -33,6 +34,7 @@ class GoogleCalendarAdapter:
                     calendarId="primary",
                     timeMin=time_min,
                     timeMax=time_max,
+                    timeZone=timezone_name,
                     singleEvents=True,
                     orderBy="startTime",
                 )
@@ -76,14 +78,15 @@ class GoogleCalendarAdapter:
         start: str,
         end: str,
         description: str | None = None,
+        timezone_name: str = "UTC",
     ) -> str:
         """Create a calendar event with [PPAI] prefix. Returns the event_id."""
         try:
             service = self._build_service(auth)
             event_body: dict = {
                 "summary": title if title.startswith(_PPAI_PREFIX) else f"{_PPAI_PREFIX} {title}",
-                "start": {"dateTime": start, "timeZone": "UTC"},
-                "end": {"dateTime": end, "timeZone": "UTC"},
+                "start": {"dateTime": start, "timeZone": timezone_name},
+                "end": {"dateTime": end, "timeZone": timezone_name},
             }
             if description:
                 event_body["description"] = description

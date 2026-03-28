@@ -156,7 +156,11 @@ class NudgeService:
             outcome = self._evaluate_zen_nudge(user_id, prefs, now, local_now, cycle)
             if outcome:
                 results.append(outcome)
-        # If zen not active, no regular nudges either (BR-SCHED-13)
+        else:
+            # Regular nudge (only if not in zen mode)
+            outcome = self._evaluate_user(user_id, now)
+            if outcome and outcome.status == NudgeDispatchStatus.sent:
+                results.append(outcome)
 
         # ------------------------------------------------------------------
         # ER3: Proactive intelligent notifications

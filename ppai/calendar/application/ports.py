@@ -39,6 +39,7 @@ class CalendarProvider(Protocol):
         start: str,
         end: str,
         description: str | None = None,
+        timezone_name: str = "UTC",
     ) -> str: ...
 
     def update_event(

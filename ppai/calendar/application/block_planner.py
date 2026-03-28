@@ -76,7 +76,54 @@ class BlockPlanner:
 
         blocks: list[TimeBlock] = []
 
+        # Separate tasks with explicit time slots from regular tasks
+        explicit_tasks = []
+        regular_tasks = []
         for task in tasks:
+            if task.get("requested_slot_start") and task.get("requested_slot_end"):
+                explicit_tasks.append(task)
+            else:
+                regular_tasks.append(task)
+
+        # ER5: First, assign tasks with explicit time slots
+        for task in explicit_tasks:
+            task_id = task.get("task_id", "")
+            title = task.get("title", "")
+            category = TaskCategory(task.get("category", TaskCategory.PERSONAL.value))
+            slot_start_str = task["requested_slot_start"]
+            slot_end_str = task["requested_slot_end"]
+            try:
+                sh, sm = map(int, slot_start_str.split(":"))
+                eh, em = map(int, slot_end_str.split(":"))
+                block_start = base_date.replace(hour=sh, minute=sm, second=0, microsecond=0)
+                block_end = base_date.replace(hour=eh, minute=em, second=0, microsecond=0)
+                block = TimeBlock(
+                    block_id=generate_id(),
+                    user_id=user_id,
+                    task_id=task_id,
+                    task_title=title,
+                    date=date,
+                    start=block_start,
+                    end=block_end,
+                    status=BlockStatus.PLANNED,
+                    category=category,
+                )
+                blocks.append(block)
+                # Mark this slot as occupied so regular tasks don't overlap
+                occupied.append((block_start, block_end))
+            except (ValueError, TypeError):
+                regular_tasks.append(task)  # Fall back to regular assignment
+
+        # Recalculate free slots after explicit assignments
+        if explicit_tasks:
+            work_free = self._find_free_slots(date, occupied, work_window_start, work_window_end)
+            non_work_free = (
+                self._find_free_slots(date, occupied, day_start, work_window_start)
+                + self._find_free_slots(date, occupied, work_window_end, day_end)
+            )
+
+        # Assign regular tasks to free slots
+        for task in regular_tasks:
             task_id = task.get("task_id", "")
             title = task.get("title", "")
             category = TaskCategory(task.get("category", TaskCategory.PERSONAL.value))
