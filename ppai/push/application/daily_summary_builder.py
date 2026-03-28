@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from datetime import date
+from typing import Optional
 
 from ppai.capture.domain.value_objects import TaskStatus
+from ppai.profile.domain.entities import UserProfile
 from ppai.push.domain.value_objects import DailySummary, TaskSummaryItem
 
 
@@ -14,7 +16,7 @@ class DailySummaryBuilder:
     def __init__(self, task_repo) -> None:
         self._task_repo = task_repo
 
-    def build(self, user_id: str, for_date: date) -> DailySummary:
+    def build(self, user_id: str, for_date: date, profile: Optional[UserProfile] = None) -> DailySummary:
         completed = []
         for task in self._task_repo.list_by_status(user_id, TaskStatus.DONE):
             if task.completed_at and task.completed_at.date() == for_date:

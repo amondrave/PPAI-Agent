@@ -23,6 +23,21 @@ variable "preferences_table_arn" {
   type        = string
 }
 
+variable "user_profiles_table_arn" {
+  description = "ARN of the user-profiles DynamoDB table (ER1)"
+  type        = string
+}
+
+variable "calendar_auth_table_arn" {
+  description = "ARN of the calendar-auth DynamoDB table (ER2)"
+  type        = string
+}
+
+variable "time_blocks_table_arn" {
+  description = "ARN of the time-blocks DynamoDB table (ER2)"
+  type        = string
+}
+
 variable "github_repo" {
   description = "GitHub repo en formato owner/repo — restringe el OIDC role a este repo"
   type        = string

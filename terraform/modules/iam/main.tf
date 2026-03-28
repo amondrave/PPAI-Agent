@@ -124,6 +124,39 @@ resource "aws_iam_role_policy" "task" {
         ]
         Resource = var.preferences_table_arn
       },
+      # ER1: User profile permissions
+      {
+        Effect = "Allow"
+        Action = [
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:UpdateItem",
+        ]
+        Resource = var.user_profiles_table_arn
+      },
+      # ER2: Calendar auth tokens permissions
+      {
+        Effect = "Allow"
+        Action = [
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:UpdateItem",
+          "dynamodb:DeleteItem",
+        ]
+        Resource = var.calendar_auth_table_arn
+      },
+      # ER2: Time blocks permissions
+      {
+        Effect = "Allow"
+        Action = [
+          "dynamodb:PutItem",
+          "dynamodb:GetItem",
+          "dynamodb:UpdateItem",
+          "dynamodb:Query",
+          "dynamodb:BatchWriteItem",
+        ]
+        Resource = var.time_blocks_table_arn
+      },
     ]
   })
 }

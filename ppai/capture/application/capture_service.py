@@ -46,11 +46,13 @@ class CaptureService:
         event_repo: EventRepository,
         dedup_repo: DedupRepository,
         active_task_limit: int = 50,
+        category_classifier: object | None = None,
     ) -> None:
         self._task_repo = task_repo
         self._event_repo = event_repo
         self._dedup_repo = dedup_repo
         self._active_task_limit = active_task_limit
+        self._category_classifier = category_classifier
         # Optional hook: called with user_id after at least one task is captured.
         # Used by DecisionService to invalidate the Top 3 cache (UOW-02).
         self.on_task_captured: callable[[str], None] | None = None
@@ -82,6 +84,7 @@ class CaptureService:
                 deadline=deadline,
                 intent_id=intent.intent_id,
             )
+            self._classify_task(task)
             result.created.append(task)
             self._emit_event(task, correlation_id)
             self._record_dedup(user_id, original, task.task_id)
@@ -120,6 +123,21 @@ class CaptureService:
             )
 
         return " ".join(parts)
+
+    def _classify_task(self, task: TaskState) -> None:
+        """Classify the task category and estimate duration using CategoryClassifier."""
+        if self._category_classifier is None:
+            return
+        try:
+            tags = [task.tag] if task.tag else []
+            task.category = self._category_classifier.classify(task.normalized_text, tags).value
+            task.estimated_minutes = self._category_classifier.estimate_minutes(task.normalized_text)
+            self._task_repo.save(task)
+        except Exception:
+            logger.warning(
+                "Failed to classify task",
+                extra={"task_id": task.task_id},
+            )
 
     # -- Private methods -------------------------------------------------------
 

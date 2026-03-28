@@ -13,6 +13,11 @@ boto3 = "^1.36.0"
 pydantic = "^2.10.0"
 pydantic-settings = "^2.7.0"
 structlog = "^24.4.0"
+holidays = "^0.65"
+google-auth = "^2.29.0"
+google-auth-oauthlib = "^1.2.0"
+google-api-python-client = "^2.127.0"
+cryptography = "^42.0.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.0"

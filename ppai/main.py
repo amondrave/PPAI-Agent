@@ -5,6 +5,15 @@ import logging
 from telegram.ext import Application, CallbackQueryHandler, CommandHandler, MessageHandler, filters
 from telegram import Update
 
+from ppai.calendar.application.block_planner import BlockPlanner
+from ppai.calendar.application.calendar_service import CalendarService
+from ppai.calendar.application.calendar_sync import CalendarSync
+from ppai.calendar.application.category_classifier import CategoryClassifier
+from ppai.calendar.application.google_oauth_service import GoogleOAuthService
+from ppai.calendar.infrastructure.dynamodb_auth_repo import DynamoDBCalendarAuthRepository
+from ppai.calendar.infrastructure.dynamodb_block_repo import DynamoDBTimeBlockRepository
+from ppai.calendar.infrastructure.google_calendar_adapter import GoogleCalendarAdapter
+from ppai.calendar.infrastructure.calendar_telegram_adapter import CalendarTelegramAdapter
 from ppai.capture.application.capture_service import CaptureService
 from ppai.capture.infrastructure.dynamodb_dedup_repo import DynamoDBDedupRepository
 from ppai.capture.infrastructure.dynamodb_event_repo import DynamoDBEventRepository
@@ -14,6 +23,11 @@ from ppai.decision.application.decision_service import DecisionService
 from ppai.decision.domain.scoring_engine import ScoringEngine
 from ppai.decision.infrastructure.decision_telegram_adapter import DecisionTelegramAdapter
 from ppai.decision.infrastructure.dynamodb_cycle_repo import DynamoDBCycleRepository
+from ppai.profile.application.onboarding_service import OnboardingService
+from ppai.profile.application.profile_service import ProfileService
+from ppai.profile.infrastructure.dynamodb_profile_repo import DynamoDBProfileRepository
+from ppai.profile.infrastructure.onboarding_telegram_adapter import OnboardingTelegramAdapter
+from ppai.profile.infrastructure.profile_telegram_adapter import ProfileTelegramAdapter
 from ppai.push.application.daily_summary_builder import DailySummaryBuilder
 from ppai.push.application.nudge_scheduler import NudgeScheduler
 from ppai.push.application.nudge_service import NudgeService
@@ -45,6 +59,11 @@ def build_app() -> Application:
     dedup_table       = dynamodb.Table(table_name(settings.dynamodb_table_prefix, "dedup"))
     cycle_table       = dynamodb.Table(table_name(settings.dynamodb_table_prefix, "cycles"))
     preferences_table = dynamodb.Table(table_name(settings.dynamodb_table_prefix, "preferences"))
+    profile_table     = dynamodb.Table(table_name(settings.dynamodb_table_prefix, "user-profiles"))
+
+    # ER2: Calendar tables
+    calendar_auth_table = dynamodb.Table(table_name(settings.dynamodb_table_prefix, "calendar-auth"))
+    time_blocks_table   = dynamodb.Table(table_name(settings.dynamodb_table_prefix, "time-blocks"))
 
     task_repo    = DynamoDBTaskStateRepository(task_table)
     event_repo   = DynamoDBEventRepository(event_table)
@@ -52,13 +71,28 @@ def build_app() -> Application:
     cycle_repo   = DynamoDBCycleRepository(cycle_table)
     prefs_repo   = DynamoDBPreferencesRepository(preferences_table)
     cycle_event_repo = DynamoDBCycleEventRepository(cycle_table)
+    profile_repo = DynamoDBProfileRepository(profile_table)
 
-    # UOW-01: Capture
+    # ER2: Calendar repos
+    calendar_auth_repo = DynamoDBCalendarAuthRepository(calendar_auth_table)
+    block_repo         = DynamoDBTimeBlockRepository(time_blocks_table)
+
+    # ER1: Profile & Onboarding
+    profile_service = ProfileService(profile_repo=profile_repo)
+    onboarding_service = OnboardingService()
+    onboarding_adapter = OnboardingTelegramAdapter(onboarding_service, profile_service)
+    profile_adapter = ProfileTelegramAdapter(profile_service)
+
+    # ER2: Category classifier (used by capture + plan)
+    category_classifier = CategoryClassifier()
+
+    # UOW-01: Capture (with ER2 category classification)
     capture_service = CaptureService(
         task_repo=task_repo,
         event_repo=event_repo,
         dedup_repo=dedup_repo,
         active_task_limit=settings.active_task_limit,
+        category_classifier=category_classifier,
     )
 
     # UOW-02: Decision — invalidate Top 3 cache after each capture
@@ -78,7 +112,7 @@ def build_app() -> Application:
 
     capture_adapter  = TelegramAdapter(capture_service, rate_limiter, user_registry)
     decision_adapter = DecisionTelegramAdapter(decision_service, user_registry)
-    config_adapter   = ConfigTelegramAdapter(prefs_repo)
+    config_adapter   = ConfigTelegramAdapter(prefs_repo, profile_adapter)
 
     # UOW-04: Respond & State Transition
     interaction_event_repo = DynamoDBInteractionEventRepository(event_repo)
@@ -111,6 +145,7 @@ def build_app() -> Application:
         zen_manager=zen_manager,
         daily_summary_builder=daily_summary_builder,
         rescue_evaluator=rescue_evaluator,
+        profile_repo=profile_repo,
     )
     nudge_scheduler = NudgeScheduler(
         nudge_service=nudge_service,
@@ -121,11 +156,47 @@ def build_app() -> Application:
     # UOW-05: /zen command
     zen_adapter = ZenTelegramAdapter(prefs_repo, cycle_event_repo, zen_manager)
 
+    # ER2: Google Calendar & Block Planning
+    oauth_service = GoogleOAuthService(
+        client_id=settings.google_client_id,
+        client_secret=settings.google_client_secret,
+    )
+    google_calendar_provider = GoogleCalendarAdapter()
+    calendar_service = CalendarService(
+        auth_repo=calendar_auth_repo,
+        calendar_provider=google_calendar_provider,
+        oauth_service=oauth_service,
+        fernet_key=settings.fernet_encryption_key,
+    )
+    block_planner = BlockPlanner()
+    calendar_sync = CalendarSync(calendar_service=calendar_service)
+    calendar_adapter = CalendarTelegramAdapter(
+        calendar_service=calendar_service,
+        oauth_service=oauth_service,
+        block_planner=block_planner,
+        block_repo=block_repo,
+        task_repo=task_repo,
+        category_classifier=category_classifier,
+        calendar_sync=calendar_sync,
+    )
+
     application = (
         Application.builder()
         .token(settings.telegram_bot_token)
         .build()
     )
+
+    # ER1: Onboarding ConversationHandler (highest priority — before capture)
+    application.add_handler(onboarding_adapter.build_conversation_handler())
+
+    # ER1: /perfil command
+    application.add_handler(CommandHandler("perfil", profile_adapter.perfil_handler))
+
+    # ER1: /libre command (days off)
+    application.add_handler(CommandHandler("libre", profile_adapter.libre_handler))
+
+    # ER2: /calendar OAuth ConversationHandler
+    application.add_handler(calendar_adapter.build_calendar_conversation_handler())
 
     # UOW-01: free-text capture
     application.add_handler(
@@ -143,11 +214,22 @@ def build_app() -> Application:
         )
     )
 
+    # ER2: block_done / block_skip callbacks
+    application.add_handler(
+        CallbackQueryHandler(
+            calendar_adapter.block_callback_handler,
+            pattern=r"^block_(done|skip):.+$",
+        )
+    )
+
     # UOW-03: /config command for nudge preferences
     application.add_handler(CommandHandler("config", config_adapter.config_handler))
 
     # UOW-05: /zen command for zen mode
     application.add_handler(CommandHandler("zen", zen_adapter.zen_handler))
+
+    # ER2: /plan command
+    application.add_handler(CommandHandler("plan", calendar_adapter.plan_handler))
 
     # UOW-04: Free-text clarify response (lower priority than commands and capture)
     application.add_handler(

@@ -11,6 +11,8 @@ import structlog
 from ppai.capture.domain.value_objects import TaskStatus
 from ppai.decision.application.decision_service import DecisionService
 from ppai.decision.domain.entities import ExecutionCycle, Top3Result
+from ppai.profile.application.ports import ProfileRepository
+from ppai.profile.domain.value_objects import CommunicationStyle
 from ppai.push.application.ports import CycleEventRepository, PreferencesRepository, TelegramPushPort
 from ppai.push.application.daily_summary_builder import DailySummaryBuilder
 from ppai.push.application.rescue_evaluator import RescueEvaluator
@@ -58,6 +60,7 @@ class NudgeService:
         zen_manager: Optional[ZenSessionManager] = None,
         daily_summary_builder: Optional[DailySummaryBuilder] = None,
         rescue_evaluator: Optional[RescueEvaluator] = None,
+        profile_repo: Optional[ProfileRepository] = None,
     ) -> None:
         self._prefs_repo = prefs_repo
         self._cycle_event_repo = cycle_event_repo
@@ -68,6 +71,8 @@ class NudgeService:
         self._zen_manager = zen_manager
         self._summary_builder = daily_summary_builder
         self._rescue_evaluator = rescue_evaluator
+        # ER1: Profile-aware tone
+        self._profile_repo = profile_repo
 
     # ------------------------------------------------------------------
     # Public API
@@ -146,7 +151,7 @@ class NudgeService:
         except Exception:
             top3 = None
 
-        text = self._build_start_message(top3, prefs.motivational_message)
+        text = self._build_start_message(top3, prefs.motivational_message, user_id=user_id)
         chat_id = str(user_id)
         sent = self._telegram.send_message(chat_id, text)
 
@@ -207,7 +212,7 @@ class NudgeService:
                         metadata={"task_id": rescue.key_task.task_id, "micro_action": rescue.micro_action},
                     )
 
-        text = self._build_end_message(summary)
+        text = self._build_end_message(summary, user_id=user_id)
         chat_id = str(user_id)
         sent = self._telegram.send_message(chat_id, text)
 
@@ -265,10 +270,29 @@ class NudgeService:
     # UOW-05: Message builders
     # ------------------------------------------------------------------
 
-    def _build_start_message(self, top3, motivational_message: str) -> str:
-        """Build morning reminder message (BR-SCHED-04, BR-SCHED-18)."""
-        header = f"Buenos días! {motivational_message}\n"
+    def _build_start_message(self, top3, motivational_message: str, user_id: str | None = None) -> str:
+        """Build morning reminder message (BR-SCHED-04, BR-SCHED-18). Adapts tone to profile."""
+        profile = self._get_user_profile(user_id) if user_id else None
+        name = profile.name if profile else ""
+        style = profile.communication_style if profile else None
+
+        if style == CommunicationStyle.GENTLE:
+            header = f"Buenos días {name}, hoy tienes un gran día por delante!\n"
+        elif style == CommunicationStyle.DIRECT:
+            header = f"{name}, tu plan de hoy:\n"
+        elif style == CommunicationStyle.CONFRONTATIONAL:
+            header = f"{name}, no hay tiempo que perder. Tu agenda de hoy:\n"
+        else:
+            # Fallback: neutral tone (no profile)
+            header = f"Buenos días! {motivational_message}\n"
+
         if top3 is None or top3.is_empty():
+            if style == CommunicationStyle.GENTLE:
+                return header + "\nNo tienes tareas pendientes por ahora. Puedes capturar nuevas con un mensaje de texto."
+            elif style == CommunicationStyle.DIRECT:
+                return header + "\nSin tareas pendientes. Captura nuevas cuando quieras."
+            elif style == CommunicationStyle.CONFRONTATIONAL:
+                return header + "\nLista vacía. Captura algo para que este día cuente."
             return header + "\nNo tienes tareas pendientes por ahora. Puedes capturar nuevas con un mensaje de texto."
 
         lines = [header, "\nTu Top 3 para hoy:"]
@@ -278,12 +302,23 @@ class NudgeService:
             lines.append(f"{i}. {title}")
         return "\n".join(lines)
 
-    def _build_end_message(self, summary) -> str:
-        """Build end-of-day summary message (BR-SCHED-05, BR-SCHED-19)."""
+    def _build_end_message(self, summary, user_id: str | None = None) -> str:
+        """Build end-of-day summary message (BR-SCHED-05, BR-SCHED-19). Adapts tone to profile."""
+        profile = self._get_user_profile(user_id) if user_id else None
+        name = profile.name if profile else ""
+        style = profile.communication_style if profile else None
+
         if summary is None:
             return "Resumen del día:\n\nNo hay datos disponibles."
 
-        parts = ["Resumen del día:\n"]
+        if style == CommunicationStyle.GENTLE:
+            parts = [f"Buen trabajo hoy, {name}!\n"]
+        elif style == CommunicationStyle.DIRECT:
+            parts = [f"Resumen del día, {name}:\n"]
+        elif style == CommunicationStyle.CONFRONTATIONAL:
+            parts = [f"{name}, asi quedo tu dia:\n"]
+        else:
+            parts = ["Resumen del día:\n"]
 
         if summary.completed_tasks:
             parts.append(f"Completadas ({len(summary.completed_tasks)}):")
@@ -305,13 +340,34 @@ class NudgeService:
         # Rescue section (BR-SCHED-20)
         if summary.rescue_triggered and summary.rescue_suggestion:
             r = summary.rescue_suggestion
-            parts.append("\nHoy fue un día difícil, y eso está bien.")
-            parts.append(f"\nSi quieres retomar con algo pequeño:")
-            parts.append(f"  • {r.key_task.title}")
-            parts.append(f"  • {r.micro_action}")
-            parts.append("\nSin presión — mañana es otro día.")
+            if style == CommunicationStyle.GENTLE:
+                parts.append("\nHoy fue un día difícil, y eso está bien.")
+                parts.append(f"\nSi quieres retomar con algo pequeño:")
+                parts.append(f"  • {r.key_task.title}")
+                parts.append(f"  • {r.micro_action}")
+                parts.append("\nSin presión — mañana es otro día.")
+            elif style == CommunicationStyle.DIRECT:
+                parts.append(f"\nRescate sugerido: {r.key_task.title}")
+                parts.append(f"  • {r.micro_action}")
+            elif style == CommunicationStyle.CONFRONTATIONAL:
+                parts.append(f"\nNo completaste nada hoy. Mínimo haz esto:")
+                parts.append(f"  • {r.key_task.title}")
+                parts.append(f"  • {r.micro_action}")
+            else:
+                parts.append("\nHoy fue un día difícil, y eso está bien.")
+                parts.append(f"\nSi quieres retomar con algo pequeño:")
+                parts.append(f"  • {r.key_task.title}")
+                parts.append(f"  • {r.micro_action}")
+                parts.append("\nSin presión — mañana es otro día.")
         else:
-            parts.append("\nDescansa bien!")
+            if style == CommunicationStyle.GENTLE:
+                parts.append("\n¡Descansa bien! Mañana seguimos.")
+            elif style == CommunicationStyle.DIRECT:
+                parts.append("\nDía cerrado.")
+            elif style == CommunicationStyle.CONFRONTATIONAL:
+                parts.append("\nBien. Mañana hay que dar más.")
+            else:
+                parts.append("\nDescansa bien!")
 
         return "\n".join(parts)
 
@@ -380,7 +436,7 @@ class NudgeService:
 
         # Build nudge message — BR-PUSH-09, BR-PUSH-10
         task = self._task_repo.get_by_id(user_id, task_id)
-        nudge_msg = self._build_nudge_message(task, prefs, is_reengagement)
+        nudge_msg = self._build_nudge_message(task, prefs, is_reengagement, user_id=user_id)
 
         # DP-PUSH-02 — persist NUDGE_SCHEDULED before sending
         self._cycle_event_repo.record_nudge_event(
@@ -453,13 +509,32 @@ class NudgeService:
         task,
         prefs: UserNudgePreferences,
         is_reengagement: bool = False,
+        user_id: str | None = None,
     ) -> NudgeMessage:
-        """Build nudge message with soft motivational tone (BR-PUSH-09, BR-PUSH-10)."""
+        """Build nudge message with tone adapted to profile (BR-PUSH-09, BR-PUSH-10)."""
         title = task.normalized_text
+        profile = self._get_user_profile(user_id) if user_id else None
+        style = profile.communication_style if profile else None
+        name = profile.name if profile else ""
+
         if is_reengagement:
-            text = _REENGAGEMENT_TEMPLATE.format(title=title)
+            if style == CommunicationStyle.GENTLE:
+                text = f"{name}, cuando estes listo, puedes retomar con: {title}"
+            elif style == CommunicationStyle.DIRECT:
+                text = f"{name}, retoma: {title}"
+            elif style == CommunicationStyle.CONFRONTATIONAL:
+                text = f"{name}, llevas tiempo sin avanzar. Retoma esto: {title}"
+            else:
+                text = _REENGAGEMENT_TEMPLATE.format(title=title)
         else:
-            text = _NUDGE_TEMPLATES[0].format(title=title)
+            if style == CommunicationStyle.GENTLE:
+                text = f"Tu siguiente paso podria ser: {title}"
+            elif style == CommunicationStyle.DIRECT:
+                text = f"{title} — siguiente."
+            elif style == CommunicationStyle.CONFRONTATIONAL:
+                text = f"Esto va primero: {title}. Arranca ya."
+            else:
+                text = _NUDGE_TEMPLATES[0].format(title=title)
 
         # Guardrail check
         lower = text.lower()
@@ -516,3 +591,12 @@ class NudgeService:
         except (ZoneInfoNotFoundError, Exception):
             tz = ZoneInfo("America/Bogota")
         return utc_dt.astimezone(tz)
+
+    def _get_user_profile(self, user_id: str | None):
+        """Fetch UserProfile if profile_repo is available. Returns None on miss."""
+        if not user_id or not self._profile_repo:
+            return None
+        try:
+            return self._profile_repo.get(user_id)
+        except Exception:
+            return None

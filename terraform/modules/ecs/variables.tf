@@ -43,3 +43,21 @@ variable "aws_region" {
   description = "AWS region"
   type        = string
 }
+
+variable "google_client_id" {
+  description = "Google OAuth 2.0 client ID"
+  type        = string
+  sensitive   = true
+}
+
+variable "google_client_secret" {
+  description = "Google OAuth 2.0 client secret"
+  type        = string
+  sensitive   = true
+}
+
+variable "fernet_encryption_key" {
+  description = "Fernet key for token encryption"
+  type        = string
+  sensitive   = true
+}

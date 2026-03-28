@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Optional
 
+from ppai.profile.domain.entities import UserProfile
+from ppai.profile.domain.value_objects import CommunicationStyle
 from ppai.push.domain.value_objects import DailySummary, RescueSuggestion, TaskSummaryItem
 
 
@@ -14,6 +16,7 @@ class RescueEvaluator:
         self,
         summary: DailySummary,
         top3: Optional[list] = None,
+        profile: Optional[UserProfile] = None,
     ) -> Optional[RescueSuggestion]:
         # BR-SCHED-06: día caído = 0 completed AND at least 1 pending/snoozed
         if summary.completed_tasks:
@@ -36,10 +39,23 @@ class RescueEvaluator:
         else:
             key_task = summary.snoozed_tasks[0]
 
-        micro_action = f"Dedícale solo 5 minutos a: {key_task.title}"
+        # Adapt tone to profile communication style
+        style = profile.communication_style if profile else None
+        if style == CommunicationStyle.GENTLE:
+            micro_action = f"Si puedes, dedícale solo 5 minutos a: {key_task.title}"
+            tone = "empathetic"
+        elif style == CommunicationStyle.DIRECT:
+            micro_action = f"5 minutos en: {key_task.title}"
+            tone = "direct"
+        elif style == CommunicationStyle.CONFRONTATIONAL:
+            micro_action = f"Mínimo haz 5 minutos de: {key_task.title}"
+            tone = "challenging"
+        else:
+            micro_action = f"Dedícale solo 5 minutos a: {key_task.title}"
+            tone = "empathetic"
 
         return RescueSuggestion(
             key_task=key_task,
             micro_action=micro_action,
-            tone="empathetic",
+            tone=tone,
         )
