@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import logging
 import time
-from dataclasses import dataclass
+from urllib.parse import urlencode
+
 from datetime import datetime, timezone
 
 import requests
@@ -17,19 +18,9 @@ _SCOPES = [
     "https://www.googleapis.com/auth/calendar.events",
 ]
 
-_DEVICE_CODE_URL = "https://oauth2.googleapis.com/device/code"
+_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 _TOKEN_URL = "https://oauth2.googleapis.com/token"
-
-
-@dataclass
-class DeviceFlowInfo:
-    """Data returned by the device authorization request."""
-
-    device_code: str
-    user_code: str
-    verification_url: str
-    expires_in: int
-    interval: int
+_REDIRECT_URI = "http://localhost"
 
 
 class GoogleOAuthService:
@@ -38,97 +29,61 @@ class GoogleOAuthService:
         self._client_secret = client_secret
 
     # ------------------------------------------------------------------
-    # Device Authorization Grant — step 1: request device & user codes
+    # Desktop App OAuth — step 1: generate authorization URL
     # ------------------------------------------------------------------
 
-    def start_device_flow(self) -> DeviceFlowInfo:
-        """Request device and user codes from Google's device authorization endpoint."""
+    def generate_auth_url(self) -> str:
+        """Generate the Google OAuth consent URL for a Desktop app client."""
+        params = {
+            "client_id": self._client_id,
+            "redirect_uri": _REDIRECT_URI,
+            "response_type": "code",
+            "scope": " ".join(_SCOPES),
+            "access_type": "offline",
+            "prompt": "consent",
+        }
+        return f"{_AUTH_URL}?{urlencode(params)}"
+
+    # ------------------------------------------------------------------
+    # Desktop App OAuth — step 2: exchange authorization code for tokens
+    # ------------------------------------------------------------------
+
+    def exchange_code(self, auth_code: str) -> tuple[str, str, datetime]:
+        """Exchange an authorization code for access and refresh tokens.
+
+        Returns (access_token, refresh_token, expiry).
+        Raises OAuthError on failure.
+        """
         try:
             resp = requests.post(
-                _DEVICE_CODE_URL,
+                _TOKEN_URL,
                 data={
                     "client_id": self._client_id,
-                    "scope": " ".join(_SCOPES),
+                    "client_secret": self._client_secret,
+                    "code": auth_code,
+                    "grant_type": "authorization_code",
+                    "redirect_uri": _REDIRECT_URI,
                 },
                 timeout=15,
             )
-            resp.raise_for_status()
             data = resp.json()
 
-            return DeviceFlowInfo(
-                device_code=data["device_code"],
-                user_code=data["user_code"],
-                verification_url=data.get("verification_url", "https://www.google.com/device"),
-                expires_in=data.get("expires_in", 1800),
-                interval=data.get("interval", 5),
+            if resp.status_code != 200 or "access_token" not in data:
+                error = data.get("error", "unknown_error")
+                error_desc = data.get("error_description", "")
+                raise OAuthError(f"Token exchange failed: {error} — {error_desc}")
+
+            access_token = data["access_token"]
+            refresh_token = data.get("refresh_token", "")
+            expires_in = data.get("expires_in", 3600)
+            expiry = datetime.fromtimestamp(
+                time.time() + expires_in, tz=timezone.utc,
             )
+            return access_token, refresh_token, expiry
+
         except requests.RequestException as exc:
-            logger.error("Failed to start device flow", extra={"error": str(exc)})
-            raise OAuthError(f"Error starting device flow: {exc}") from exc
-        except (KeyError, ValueError) as exc:
-            logger.error("Invalid device flow response", extra={"error": str(exc)})
-            raise OAuthError(f"Invalid device flow response: {exc}") from exc
-
-    # ------------------------------------------------------------------
-    # Device Authorization Grant — step 2: poll for tokens
-    # ------------------------------------------------------------------
-
-    def poll_device_token(
-        self,
-        device_code: str,
-        interval: int = 5,
-        max_attempts: int = 6,
-    ) -> tuple[str, str, datetime]:
-        """Poll Google's token endpoint until the user authorizes.
-
-        Returns (access_token, refresh_token, expiry).
-        Raises OAuthError if authorization times out or is denied.
-        """
-        for attempt in range(max_attempts):
-            if attempt > 0:
-                time.sleep(interval)
-
-            try:
-                resp = requests.post(
-                    _TOKEN_URL,
-                    data={
-                        "client_id": self._client_id,
-                        "client_secret": self._client_secret,
-                        "device_code": device_code,
-                        "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
-                    },
-                    timeout=15,
-                )
-                data = resp.json()
-
-                if resp.status_code == 200 and "access_token" in data:
-                    access_token = data["access_token"]
-                    refresh_token = data.get("refresh_token", "")
-                    expires_in = data.get("expires_in", 3600)
-                    expiry = datetime.now(timezone.utc).replace(
-                        microsecond=0,
-                    )
-                    expiry = expiry.replace(
-                        second=expiry.second + expires_in,
-                    ) if expires_in < 60 else datetime.fromtimestamp(
-                        time.time() + expires_in, tz=timezone.utc,
-                    )
-                    return access_token, refresh_token, expiry
-
-                error = data.get("error", "")
-                if error == "authorization_pending":
-                    continue
-                if error == "slow_down":
-                    interval += 1
-                    continue
-                if error in ("access_denied", "expired_token"):
-                    raise OAuthError(f"Device authorization failed: {error}")
-
-            except requests.RequestException as exc:
-                logger.warning("Token poll network error", extra={"error": str(exc)})
-                continue
-
-        raise OAuthError("Device authorization timed out — user did not authorize in time")
+            logger.error("Token exchange network error", extra={"error": str(exc)})
+            raise OAuthError(f"Error exchanging auth code: {exc}") from exc
 
     # ------------------------------------------------------------------
     # Token refresh (unchanged — works for any grant type)

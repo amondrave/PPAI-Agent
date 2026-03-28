@@ -30,10 +30,10 @@ class CalendarService:
             self._fernet = None
             logger.warning("FERNET_ENCRYPTION_KEY not set; calendar encryption disabled")
 
-    def connect(self, user_id: str, device_code: str) -> bool:
-        """Poll device token, encrypt tokens, and save CalendarAuth."""
+    def connect(self, user_id: str, auth_code: str) -> bool:
+        """Exchange auth code for tokens, encrypt them, and save CalendarAuth."""
         try:
-            access_token, refresh_token, expiry = self._oauth_service.poll_device_token(device_code)
+            access_token, refresh_token, expiry = self._oauth_service.exchange_code(auth_code)
 
             auth = CalendarAuth(
                 user_id=user_id,
