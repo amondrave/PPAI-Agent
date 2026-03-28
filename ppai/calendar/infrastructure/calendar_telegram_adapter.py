@@ -80,10 +80,14 @@ class CalendarTelegramAdapter:
                 ASK_CODE: [
                     MessageHandler(filters.TEXT & ~filters.COMMAND, self._calendar_code),
                 ],
+                ConversationHandler.TIMEOUT: [
+                    MessageHandler(filters.ALL, self._calendar_timeout),
+                ],
             },
             fallbacks=[CommandHandler("cancel", self._calendar_cancel)],
             per_user=True,
             per_chat=True,
+            conversation_timeout=300,  # 5 minutes to paste code, then release handler
         )
 
     async def _calendar_start(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -190,6 +194,10 @@ class CalendarTelegramAdapter:
         """Cancel the OAuth flow."""
         if update.message:
             await update.message.reply_text("Conexion de calendario cancelada.")
+        return ConversationHandler.END
+
+    async def _calendar_timeout(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+        """Handle conversation timeout — free the handler so capture works again."""
         return ConversationHandler.END
 
     # ------------------------------------------------------------------
