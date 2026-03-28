@@ -128,7 +128,27 @@ class CalendarTelegramAdapter:
             return ConversationHandler.END
 
         user_id = str(update.effective_user.id)
-        auth_code = update.message.text.strip()
+        raw_input = update.message.text.strip()
+
+        # Extract auth code from various formats users might paste:
+        # - Full URL: http://localhost/?code=XXXX&scope=...
+        # - With prefix: code=XXXX
+        # - Just the code: 4/0Aci98E-XXXX
+        auth_code = raw_input
+        if "code=" in auth_code:
+            from urllib.parse import parse_qs, urlparse
+            try:
+                parsed = urlparse(auth_code)
+                if parsed.query:
+                    params = parse_qs(parsed.query)
+                    auth_code = params.get("code", [auth_code])[0]
+                else:
+                    # Handle "code=XXXX" without URL
+                    auth_code = auth_code.split("code=", 1)[1].split("&")[0]
+            except Exception:
+                auth_code = raw_input
+
+        auth_code = auth_code.strip()
 
         if not auth_code:
             await update.message.reply_text(
