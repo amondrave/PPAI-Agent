@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
+from functools import partial
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
@@ -85,7 +87,7 @@ class CalendarTelegramAdapter:
         )
 
     async def _calendar_start(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-        """Start the OAuth flow: send auth URL and wait for code."""
+        """Start the OAuth device flow: show user code and wait for confirmation."""
         if not update.effective_user or not update.message:
             return ConversationHandler.END
 
@@ -95,17 +97,23 @@ class CalendarTelegramAdapter:
         if self._calendar_service.is_connected(user_id):
             await update.message.reply_text(
                 "\u2705 Tu Google Calendar ya esta conectado.\n"
-                "Para reconectar, usa /calendar de nuevo y pega el codigo."
+                "Para reconectar, usa /calendar de nuevo."
             )
 
         try:
-            auth_url = self._oauth_service.generate_auth_url()
+            device_info = self._oauth_service.start_device_flow()
+
+            # Store device_code in context for the next step
+            if context.user_data is not None:
+                context.user_data["device_code"] = device_info.device_code
+                context.user_data["device_interval"] = device_info.interval
+
             await update.message.reply_text(
                 "\U0001f4c5 *Conectar Google Calendar*\n\n"
-                "1. Abre este enlace en tu navegador:\n"
-                f"{auth_url}\n\n"
-                "2. Autoriza el acceso a tu calendario\n"
-                "3. Copia el codigo que aparece y pegalo aqui\n\n"
+                f"1. Abre en tu navegador:\n{device_info.verification_url}\n\n"
+                f"2. Ingresa este codigo:\n`{device_info.user_code}`\n\n"
+                "3. Autoriza el acceso a tu calendario\n\n"
+                "4. Cuando termines, escribe *listo*\n\n"
                 "Escribe /cancel para cancelar.",
                 parse_mode="Markdown",
             )
@@ -113,22 +121,37 @@ class CalendarTelegramAdapter:
         except Exception as exc:
             logger.error("Error starting OAuth flow", extra={"error": str(exc)})
             await update.message.reply_text(
-                "\u274c Error al generar el enlace de autorizacion. Intenta de nuevo."
+                "\u274c Error al iniciar la autorizacion. Intenta de nuevo."
             )
             return ConversationHandler.END
 
     async def _calendar_code(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-        """Receive the auth code, exchange it, and confirm connection."""
+        """User confirmed authorization — poll for token."""
         if not update.effective_user or not update.message or not update.message.text:
             return ConversationHandler.END
 
         user_id = str(update.effective_user.id)
-        code = update.message.text.strip()
 
-        success = self._calendar_service.connect(user_id, code)
+        device_code = (context.user_data or {}).get("device_code")
+        interval = (context.user_data or {}).get("device_interval", 5)
+
+        if not device_code:
+            await update.message.reply_text(
+                "\u274c Sesion expirada. Intenta de nuevo con /calendar."
+            )
+            return ConversationHandler.END
+
+        await update.message.reply_text("\u23f3 Verificando autorizacion...")
+
+        loop = asyncio.get_event_loop()
+        success = await loop.run_in_executor(
+            None, partial(self._calendar_service.connect, user_id, device_code),
+        )
         if not success:
             await update.message.reply_text(
-                "\u274c Codigo invalido o expirado. Intenta de nuevo con /calendar."
+                "\u274c No se pudo verificar la autorizacion.\n"
+                "Asegurate de haber completado los pasos en el navegador "
+                "e intenta de nuevo con /calendar."
             )
             return ConversationHandler.END
 

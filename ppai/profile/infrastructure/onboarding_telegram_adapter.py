@@ -87,7 +87,6 @@ class OnboardingTelegramAdapter:
                 CommandHandler("cancel", self._cancel),
                 CommandHandler("setup", self._setup_command),
             ],
-            allow_reentry=True,
         )
 
     async def _start_command(

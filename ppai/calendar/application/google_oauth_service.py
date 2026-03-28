@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import logging
+import time
+from dataclasses import dataclass
 from datetime import datetime, timezone
 
+import requests
 from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
 
 from ppai.calendar.domain.exceptions import OAuthError
 
@@ -15,7 +17,19 @@ _SCOPES = [
     "https://www.googleapis.com/auth/calendar.events",
 ]
 
-_REDIRECT_URI = "urn:ietf:wg:oauth:2.0:oob"
+_DEVICE_CODE_URL = "https://oauth2.googleapis.com/device/code"
+_TOKEN_URL = "https://oauth2.googleapis.com/token"
+
+
+@dataclass
+class DeviceFlowInfo:
+    """Data returned by the device authorization request."""
+
+    device_code: str
+    user_code: str
+    verification_url: str
+    expires_in: int
+    interval: int
 
 
 class GoogleOAuthService:
@@ -23,61 +37,102 @@ class GoogleOAuthService:
         self._client_id = client_id
         self._client_secret = client_secret
 
-    def generate_auth_url(self) -> str:
-        """Generate the OAuth consent URL for the user to authorize access."""
+    # ------------------------------------------------------------------
+    # Device Authorization Grant — step 1: request device & user codes
+    # ------------------------------------------------------------------
+
+    def start_device_flow(self) -> DeviceFlowInfo:
+        """Request device and user codes from Google's device authorization endpoint."""
         try:
-            flow = InstalledAppFlow.from_client_config(
-                client_config={
-                    "installed": {
+            resp = requests.post(
+                _DEVICE_CODE_URL,
+                data={
+                    "client_id": self._client_id,
+                    "scope": " ".join(_SCOPES),
+                },
+                timeout=15,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+
+            return DeviceFlowInfo(
+                device_code=data["device_code"],
+                user_code=data["user_code"],
+                verification_url=data.get("verification_url", "https://www.google.com/device"),
+                expires_in=data.get("expires_in", 1800),
+                interval=data.get("interval", 5),
+            )
+        except requests.RequestException as exc:
+            logger.error("Failed to start device flow", extra={"error": str(exc)})
+            raise OAuthError(f"Error starting device flow: {exc}") from exc
+        except (KeyError, ValueError) as exc:
+            logger.error("Invalid device flow response", extra={"error": str(exc)})
+            raise OAuthError(f"Invalid device flow response: {exc}") from exc
+
+    # ------------------------------------------------------------------
+    # Device Authorization Grant — step 2: poll for tokens
+    # ------------------------------------------------------------------
+
+    def poll_device_token(
+        self,
+        device_code: str,
+        interval: int = 5,
+        max_attempts: int = 6,
+    ) -> tuple[str, str, datetime]:
+        """Poll Google's token endpoint until the user authorizes.
+
+        Returns (access_token, refresh_token, expiry).
+        Raises OAuthError if authorization times out or is denied.
+        """
+        for attempt in range(max_attempts):
+            if attempt > 0:
+                time.sleep(interval)
+
+            try:
+                resp = requests.post(
+                    _TOKEN_URL,
+                    data={
                         "client_id": self._client_id,
                         "client_secret": self._client_secret,
-                        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-                        "token_uri": "https://oauth2.googleapis.com/token",
-                        "redirect_uris": [_REDIRECT_URI],
-                    }
-                },
-                scopes=_SCOPES,
-            )
-            auth_url, _ = flow.authorization_url(
-                access_type="offline",
-                prompt="consent",
-            )
-            return auth_url
-        except Exception as exc:
-            logger.error("Failed to generate auth URL", extra={"error": str(exc)})
-            raise OAuthError(f"Error generating auth URL: {exc}") from exc
+                        "device_code": device_code,
+                        "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
+                    },
+                    timeout=15,
+                )
+                data = resp.json()
 
-    def exchange_code(self, code: str) -> tuple[str, str, datetime]:
-        """Exchange authorization code for tokens. Returns (access_token, refresh_token, expiry)."""
-        try:
-            flow = InstalledAppFlow.from_client_config(
-                client_config={
-                    "installed": {
-                        "client_id": self._client_id,
-                        "client_secret": self._client_secret,
-                        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-                        "token_uri": "https://oauth2.googleapis.com/token",
-                        "redirect_uris": [_REDIRECT_URI],
-                    }
-                },
-                scopes=_SCOPES,
-            )
-            flow.redirect_uri = _REDIRECT_URI
-            flow.fetch_token(code=code)
-            credentials = flow.credentials
+                if resp.status_code == 200 and "access_token" in data:
+                    access_token = data["access_token"]
+                    refresh_token = data.get("refresh_token", "")
+                    expires_in = data.get("expires_in", 3600)
+                    expiry = datetime.now(timezone.utc).replace(
+                        microsecond=0,
+                    )
+                    expiry = expiry.replace(
+                        second=expiry.second + expires_in,
+                    ) if expires_in < 60 else datetime.fromtimestamp(
+                        time.time() + expires_in, tz=timezone.utc,
+                    )
+                    return access_token, refresh_token, expiry
 
-            access_token = credentials.token
-            refresh_token = credentials.refresh_token or ""
-            expiry = credentials.expiry
-            if expiry and expiry.tzinfo is None:
-                expiry = expiry.replace(tzinfo=timezone.utc)
-            if expiry is None:
-                expiry = datetime.now(timezone.utc)
+                error = data.get("error", "")
+                if error == "authorization_pending":
+                    continue
+                if error == "slow_down":
+                    interval += 1
+                    continue
+                if error in ("access_denied", "expired_token"):
+                    raise OAuthError(f"Device authorization failed: {error}")
 
-            return access_token, refresh_token, expiry
-        except Exception as exc:
-            logger.error("Failed to exchange code", extra={"error": str(exc)})
-            raise OAuthError(f"Error exchanging code: {exc}") from exc
+            except requests.RequestException as exc:
+                logger.warning("Token poll network error", extra={"error": str(exc)})
+                continue
+
+        raise OAuthError("Device authorization timed out — user did not authorize in time")
+
+    # ------------------------------------------------------------------
+    # Token refresh (unchanged — works for any grant type)
+    # ------------------------------------------------------------------
 
     def refresh_token(self, refresh_token: str) -> tuple[str, datetime]:
         """Refresh an expired access token. Returns (new_access_token, new_expiry)."""
@@ -85,7 +140,7 @@ class GoogleOAuthService:
             credentials = Credentials(
                 token=None,
                 refresh_token=refresh_token,
-                token_uri="https://oauth2.googleapis.com/token",
+                token_uri=_TOKEN_URL,
                 client_id=self._client_id,
                 client_secret=self._client_secret,
                 scopes=_SCOPES,
