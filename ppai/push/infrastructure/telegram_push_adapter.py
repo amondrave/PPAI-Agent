@@ -55,6 +55,68 @@ class TelegramPushAdapter:
             )
             return False
 
+    def send_message(self, chat_id: str, text: str) -> bool:
+        """Send a plain text message (no buttons). Used for daily reminders."""
+        payload = {
+            "chat_id": chat_id,
+            "text": text,
+            "parse_mode": "Markdown",
+        }
+        try:
+            resp = requests.post(self._url, json=payload, timeout=10)
+            if resp.status_code == 200:
+                return True
+            logger.warning(
+                "Telegram send_message failed",
+                extra={"chat_id": chat_id, "status_code": resp.status_code},
+            )
+            return False
+        except requests.RequestException as exc:
+            logger.warning(
+                "Telegram send_message error",
+                extra={"chat_id": chat_id, "error": str(exc)},
+            )
+            return False
+
+    def send_message_with_buttons(
+        self,
+        chat_id: str,
+        text: str,
+        buttons: list[list[dict[str, str]]],
+    ) -> bool:
+        """Send a message with inline keyboard buttons.
+
+        Args:
+            chat_id: Telegram chat ID.
+            text: Message text (Markdown).
+            buttons: List of rows, each row is a list of dicts with 'text' and 'callback_data'.
+        """
+        inline_keyboard = [
+            [{"text": btn["text"], "callback_data": btn["callback_data"]} for btn in row]
+            for row in buttons
+        ]
+        payload = {
+            "chat_id": chat_id,
+            "text": text,
+            "parse_mode": "Markdown",
+            "reply_markup": {"inline_keyboard": inline_keyboard},
+        }
+        try:
+            resp = requests.post(self._url, json=payload, timeout=10)
+            if resp.status_code == 200:
+                return True
+            logger.warning(
+                "Telegram send_message_with_buttons failed",
+                extra={"chat_id": chat_id, "status_code": resp.status_code},
+            )
+            return False
+        except requests.RequestException as exc:
+            logger.warning(
+                "Telegram send_message_with_buttons error",
+                extra={"chat_id": chat_id, "error": str(exc)},
+            )
+            return False
+
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------

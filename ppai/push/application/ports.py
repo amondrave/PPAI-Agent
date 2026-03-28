@@ -71,3 +71,12 @@ class TelegramPushPort(Protocol):
     def send_message(self, chat_id: str, text: str) -> bool:
         """Send a plain text message (no buttons). Used for daily reminders."""
         ...
+
+    def send_message_with_buttons(
+        self,
+        chat_id: str,
+        text: str,
+        buttons: list[list[dict[str, str]]],
+    ) -> bool:
+        """Send a message with inline keyboard buttons (ER3 block reminders, etc.)."""
+        ...

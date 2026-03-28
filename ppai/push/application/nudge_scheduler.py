@@ -14,9 +14,11 @@ class NudgeScheduler:
     In-process scheduler that fires NudgeService.run_tick every tick_interval_minutes.
     Runs in a background thread inside the same ECS container as the bot (DP-PUSH-01).
     Fail-soft: exceptions in a tick are logged but never propagate (DP-PUSH-06).
+    ER3: Dynamic interval — reduces to 1 min when users have active blocks today.
     """
 
     _MIN_INTERVAL_MINUTES = 5  # Floor for dynamic interval (DP-SCHED-01)
+    _BLOCK_ACTIVE_INTERVAL_MINUTES = 1  # ER3: faster ticks when blocks active
 
     def __init__(
         self,
@@ -24,12 +26,14 @@ class NudgeScheduler:
         user_ids_provider: Callable[[], list[str]],
         tick_interval_minutes: int = 15,
         interval_provider: Callable[[], int] | None = None,
+        block_repo=None,
     ) -> None:
         self._service = nudge_service
         self._user_ids_provider = user_ids_provider
         self._base_interval_minutes = tick_interval_minutes
         self._interval_seconds = tick_interval_minutes * 60
         self._interval_provider = interval_provider
+        self._block_repo = block_repo  # ER3: for dynamic interval check
         self._stop_event = threading.Event()
         self._thread: threading.Thread | None = None
 
@@ -84,8 +88,23 @@ class NudgeScheduler:
             logger.error("nudge_scheduler.tick_error", error=str(exc))
 
     def _recalculate_interval(self) -> None:
-        """Recalculate tick interval from provider, with floor (DP-SCHED-01)."""
+        """Recalculate tick interval from provider, with floor (DP-SCHED-01).
+
+        ER3: When any user has active blocks today, reduce to 1 min for
+        timely block start/end reminders.
+        """
+        # ER3: Check if any user has active blocks -> 1 min interval
+        if self._block_repo:
+            try:
+                has_active = self._check_any_user_has_active_blocks()
+                if has_active:
+                    self._interval_seconds = self._BLOCK_ACTIVE_INTERVAL_MINUTES * 60
+                    return
+            except Exception:
+                pass  # Fall through to default logic
+
         if self._interval_provider is None:
+            self._interval_seconds = self._base_interval_minutes * 60
             return
         try:
             dynamic = self._interval_provider()
@@ -96,3 +115,22 @@ class NudgeScheduler:
             self._interval_seconds = minutes * 60
         except Exception:
             pass  # Keep current interval on error
+
+    def _check_any_user_has_active_blocks(self) -> bool:
+        """Check if any registered user has planned/in_progress blocks today."""
+        try:
+            user_ids = self._user_ids_provider()
+        except Exception:
+            return False
+
+        now = datetime.now(timezone.utc)
+        today_str = now.strftime("%Y-%m-%d")
+
+        for user_id in user_ids:
+            try:
+                blocks = self._block_repo.get_plan(user_id, today_str)
+                if any(b.status.value in ("planned", "in_progress") for b in blocks):
+                    return True
+            except Exception:
+                continue
+        return False

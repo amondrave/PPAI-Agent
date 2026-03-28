@@ -1,8 +1,8 @@
 # Infra Snapshot — PPAI en Producción
 
 **Región:** us-east-1
-**Última actualización:** 2026-03-25T21:50:00Z
-**Deploy commit:** `dc1f81da` — Merge pull request #8 (fix/top3-bandeja-vacia)
+**Última actualización:** 2026-03-28T13:00:00Z
+**Deploy commit:** `a7ba1639` — Merge pull request #14 (ER1 profile/onboarding + ER2 Google Calendar)
 **Estado general:** ✅ Operativo
 
 ---
@@ -15,9 +15,10 @@
 | Servicio | `ppai-bot-service` |
 | Estado | ACTIVE |
 | Tasks corriendo | 1 / 1 |
-| Task Definition | `ppai-bot-task:7` |
-| Imagen desplegada | `198860290243.dkr.ecr.us-east-1.amazonaws.com/ppai-bot:dc1f81daa2ef1cb3a4e5acf745753741fecddde8` |
+| Task Definition | `ppai-bot-task:14` |
+| Imagen desplegada | `198860290243.dkr.ecr.us-east-1.amazonaws.com/ppai-bot:a7ba16399aa3354eb0a149f50b289bd663af2fe5` |
 | CPU / Memoria | 256 CPU / 512 MB |
+| Env vars nuevas | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `FERNET_ENCRYPTION_KEY` |
 
 ### Verificar desde CLI
 ```bash
@@ -39,8 +40,7 @@ aws logs tail /ppai/bot --follow --since 5m
 |-------|-------|
 | Repositorio | `198860290243.dkr.ecr.us-east-1.amazonaws.com/ppai-bot` |
 | Mutabilidad | MUTABLE |
-| Tags presentes | `dc1f81da...`, `6e6fd996...`, `baafa2b2...`, `2302c070...`, `a7df9299...`, `3c71166b...`, `af69f6a5...`, `b499f83c...`, `5296740d...`, `latest` |
-| Imagen activa | `dc1f81daa2ef1cb3a4e5acf745753741fecddde8` |
+| Imagen activa | `a7ba16399aa3354eb0a149f50b289bd663af2fe5` |
 
 ### Verificar desde CLI
 ```bash
@@ -58,18 +58,21 @@ aws ecs describe-services --cluster ppai-cluster --services ppai-bot-service \
 
 ## DynamoDB — Persistencia
 
-| Tabla | ARN | Estado | Items |
-|-------|-----|--------|-------|
-| `ppai-tasks` | `arn:aws:dynamodb:us-east-1:198860290243:table/ppai-tasks` | ACTIVE | 2 |
-| `ppai-events` | `arn:aws:dynamodb:us-east-1:198860290243:table/ppai-events` | ACTIVE | 2 |
-| `ppai-dedup` | `arn:aws:dynamodb:us-east-1:198860290243:table/ppai-dedup` | ACTIVE | 1 |
-| `ppai-cycles` | `arn:aws:dynamodb:us-east-1:198860290243:table/ppai-cycles` | ACTIVE | 3 |
-| `ppai-preferences` | `arn:aws:dynamodb:us-east-1:198860290243:table/ppai-preferences` | ACTIVE | 0 |
+| Tabla | ARN | Estado | Items | Módulo |
+|-------|-----|--------|-------|--------|
+| `ppai-tasks` | `arn:aws:dynamodb:us-east-1:198860290243:table/ppai-tasks` | ACTIVE | 4 | UOW-01 |
+| `ppai-events` | `arn:aws:dynamodb:us-east-1:198860290243:table/ppai-events` | ACTIVE | 9 | UOW-01 |
+| `ppai-dedup` | `arn:aws:dynamodb:us-east-1:198860290243:table/ppai-dedup` | ACTIVE | 0 | UOW-01 |
+| `ppai-cycles` | `arn:aws:dynamodb:us-east-1:198860290243:table/ppai-cycles` | ACTIVE | 5 | UOW-02 |
+| `ppai-preferences` | `arn:aws:dynamodb:us-east-1:198860290243:table/ppai-preferences` | ACTIVE | 1 | UOW-03 |
+| `ppai-user-profiles` | `arn:aws:dynamodb:us-east-1:198860290243:table/ppai-user-profiles` | ACTIVE | 0 | ER1 |
+| `ppai-calendar-auth` | `arn:aws:dynamodb:us-east-1:198860290243:table/ppai-calendar-auth` | ACTIVE | 0 | ER2 |
+| `ppai-time-blocks` | `arn:aws:dynamodb:us-east-1:198860290243:table/ppai-time-blocks` | ACTIVE | 0 | ER2 |
 
 ### Verificar desde CLI
 ```bash
 # Estado de todas las tablas
-for TABLE in ppai-tasks ppai-events ppai-dedup ppai-cycles ppai-preferences; do
+for TABLE in ppai-tasks ppai-events ppai-dedup ppai-cycles ppai-preferences ppai-user-profiles ppai-calendar-auth ppai-time-blocks; do
   aws dynamodb describe-table --table-name $TABLE \
     --query 'Table.{name:TableName,status:TableStatus,items:ItemCount}'
 done
@@ -110,7 +113,7 @@ aws ec2 describe-vpc-endpoints --filters "Name=tag:Name,Values=ppai-dynamodb-end
 | Role | ARN | Propósito |
 |------|-----|-----------|
 | `ppai-task-execution-role` | `arn:aws:iam::198860290243:role/ppai-task-execution-role` | ECS pull de imagen + CloudWatch |
-| `ppai-task-role` | `arn:aws:iam::198860290243:role/ppai-task-role` | Permisos DynamoDB del bot |
+| `ppai-task-role` | `arn:aws:iam::198860290243:role/ppai-task-role` | Permisos DynamoDB del bot (8 tablas) |
 | `ppai-github-deploy` | `arn:aws:iam::198860290243:role/ppai-github-deploy` | GitHub Actions OIDC deploy |
 
 ### Verificar desde CLI
@@ -128,7 +131,7 @@ aws iam get-role-policy --role-name ppai-task-role --policy-name ppai-task-polic
 
 | Log Group | Retención | Bytes almacenados |
 |-----------|-----------|-------------------|
-| `/ppai/bot` | 90 días | 2,471,681 |
+| `/ppai/bot` | 90 días | 7,693,775 |
 
 ### Verificar desde CLI
 ```bash
@@ -150,7 +153,7 @@ aws logs filter-log-events \
 |---------|-------|--------|
 | S3 Bucket | `ppai-terraform-state` | versioning enabled |
 | DynamoDB Lock | `ppai-terraform-lock` | ACTIVE |
-| State file | `ppai/terraform.tfstate` | 65,611 bytes — 2026-03-25 |
+| State file | `ppai/terraform.tfstate` | 72.4 KiB — 2026-03-28 |
 
 ### Verificar desde CLI
 ```bash
@@ -169,11 +172,11 @@ aws dynamodb scan --table-name ppai-terraform-lock \
 | Servicio | Costo estimado |
 |----------|---------------|
 | ECS Fargate (256 CPU, 512 MB, 24/7) | ~$9.50 |
-| DynamoDB (On-Demand, bajo volumen) | ~$1.50 |
+| DynamoDB (On-Demand, 8 tablas, bajo volumen) | ~$2.00 |
 | CloudWatch Logs (90 días retención) | ~$1.00 |
 | ECR (imágenes almacenadas) | ~$0.10 |
 | VPC + Internet Gateway | $0.00 |
-| **Total** | **~$12.10/mes** |
+| **Total** | **~$12.60/mes** |
 
 *NAT Gateway eliminado — ahorro de ~$32/mes respecto al diseño original.*
 
@@ -186,3 +189,4 @@ aws dynamodb scan --table-name ppai-terraform-lock \
 | 2026-03-23 | `af69f6a5` | ✅ Operativo | Primer deploy exitoso — polling mode, ECS 1/1, 4 tablas DynamoDB |
 | 2026-03-25 | `baafa2b2` | ✅ Operativo | UOW-03: tabla ppai-preferences ACTIVE, task def :5 creada, rolling update pendiente |
 | 2026-03-25 | `dc1f81da` | ✅ Operativo | Fix #8: /top3 bandeja vacía + requests dep — task def :7, 5 tablas DynamoDB, 1/1 running |
+| 2026-03-28 | `a7ba1639` | ✅ Operativo | ER1+ER2: 3 tablas nuevas (user-profiles, calendar-auth, time-blocks), task def :14, env vars Google/Fernet, 8 tablas total |

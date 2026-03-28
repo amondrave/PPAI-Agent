@@ -11,6 +11,29 @@ Versionado: [Semantic Versioning](https://semver.org/)
 
 ---
 
+## [v1.1.0] — 2026-03-28
+
+### ✨ Added — ER3 Notificaciones Proactivas Inteligentes (HU-R3.1 → HU-R3.5)
+
+- Implementado **recordatorios de inicio y cierre de bloque** (HU-R3.1): 5 minutos antes de cada bloque el bot envía recordatorio con botones [Arrancar] [+15min] [Saltar]; al terminar pregunta cómo fue con [Completé] [Más tiempo] [No avancé]. Scheduler dinámico baja a 1 minuto de intervalo cuando hay bloques activos.
+- Implementado **detector de huecos por cambios en calendario** (HU-R3.2): cada 15 minutos compara snapshot de Google Calendar, detecta eventos cancelados/movidos y propone reasignar tarea urgente, continuar en progreso o descanso.
+- Implementado **detector de fricción en tareas estancadas** (HU-R3.3, DIFERENCIAL): si una tarea lleva 3+ días en el Top 3 sin completarse, el bot ofrece 4 opciones — dividirla, pedir info, eliminarla o hacer Pomodoro de 25 minutos. `handle_divide()` crea sub-tareas y cierra la original; `handle_pomodoro()` agenda bloque inmediato.
+- Implementado **reporte semanal con insights accionables** (HU-R3.4, DIFERENCIAL): cada domingo (o lunes si weekend_mode=rest) envía resumen de 7 días con tareas completadas/pospuestas, bloques completados vs planeados, día más/menos productivo, patrones detectados y sugerencias concretas para la próxima semana.
+- Implementado **check-in de medio día** (HU-R3.5): si a mitad de la jornada no se ha completado ningún bloque, el bot ofrece 4 opciones de recuperación — replannear tarde, capturar imprevistos, pedir ayuda o arrancar ahora.
+- Extendido `TaskState` con campos `days_in_top3` y `friction_notes` para tracking de procrastinación.
+- `DecisionService` incrementa `days_in_top3` automáticamente cada vez que una tarea entra al Top 3.
+- `ER3CallbackAdapter` centraliza 16 nuevos patrones de callback para los 5 tipos de notificación.
+- Todas las notificaciones adaptan tono al `communication_style` del perfil (gentle/direct/confrontational) con fallback neutro.
+
+### ⚙️ Infra
+
+- `NudgeScheduler` con intervalo dinámico: 1 minuto cuando hay bloques activos, 5 minutos base.
+- `TelegramPushAdapter` extendido con `send_message_with_buttons()` para mensajes con teclado inline.
+- Actualizado `docs/infra-snapshot.md` con estado post-deploy ER1+ER2 (8 tablas DynamoDB, task def :14).
+- Total del proyecto: **466 tests passing**, 0 failures.
+
+---
+
 ## [v1.0.0] — 2026-03-28
 
 ### ✨ Added — ER1 Onboarding y Perfil de Usuario (HU-R1.1 → HU-R1.4)
@@ -289,7 +312,8 @@ Versionado: [Semantic Versioning](https://semver.org/)
 
 ---
 
-[Unreleased]: https://github.com/amondrave/PPAI-Agent/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/amondrave/PPAI-Agent/compare/v1.1.0...HEAD
+[v1.1.0]: https://github.com/amondrave/PPAI-Agent/compare/v1.0.0...v1.1.0
 [v1.0.0]: https://github.com/amondrave/PPAI-Agent/compare/v0.9.0...v1.0.0
 [v0.9.0]: https://github.com/amondrave/PPAI-Agent/compare/v0.8.0...v0.9.0
 [v0.8.0]: https://github.com/amondrave/PPAI-Agent/compare/v0.7.0...v0.8.0
