@@ -422,14 +422,15 @@ class TestZenNudge:
         sent = [o for o in outcomes if o.status == NudgeDispatchStatus.sent]
         assert len(sent) >= 1
 
-    def test_zen_not_active_no_regular_nudges(self):
-        """When zen_active=False, no regular nudges dispatched (BR-SCHED-13)."""
+    def test_zen_not_active_sends_regular_nudges(self):
+        """When zen_active=False, regular nudges ARE dispatched."""
         prefs = UserNudgePreferences(user_id="u1", zen_active=False)
         svc, _, _, _, tp = _make_service(prefs=prefs)
         outcomes = svc.run_tick(["u1"], now=NOW_MID)
 
-        # Outside start/end windows and zen not active → no outcomes
-        assert len(outcomes) == 0
+        # Outside start/end windows, zen not active → regular nudge sent
+        assert len(outcomes) == 1
+        assert outcomes[0].status == NudgeDispatchStatus.sent
 
     def test_zen_no_session_no_nudge(self):
         """Zen active in prefs but no session in manager → no nudge."""

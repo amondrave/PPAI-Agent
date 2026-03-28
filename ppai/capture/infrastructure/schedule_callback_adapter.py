@@ -6,12 +6,17 @@ from datetime import datetime, timedelta, timezone
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
 from ppai.calendar.application.block_planner import BlockPlanner
 from ppai.calendar.application.calendar_service import CalendarService
 from ppai.capture.application.ports import TaskStateRepository
 from ppai.profile.application.profile_service import ProfileService
+from ppai.push.application.ports import PreferencesRepository
 
 logger = logging.getLogger(__name__)
+
+_DEFAULT_TZ = "America/Bogota"
 
 
 class ScheduleCallbackAdapter:
@@ -28,11 +33,30 @@ class ScheduleCallbackAdapter:
         block_planner: BlockPlanner,
         task_repo: TaskStateRepository,
         profile_service: ProfileService,
+        prefs_repo: PreferencesRepository | None = None,
     ) -> None:
         self._calendar_service = calendar_service
         self._block_planner = block_planner
         self._task_repo = task_repo
         self._profile_service = profile_service
+        self._prefs_repo = prefs_repo
+
+    def _get_user_tz(self, user_id: str) -> str:
+        """Get user's timezone name from preferences."""
+        if self._prefs_repo:
+            prefs = self._prefs_repo.get(user_id)
+            if prefs:
+                return prefs.timezone
+        return _DEFAULT_TZ
+
+    def _local_now(self, user_id: str) -> datetime:
+        """Get current time in user's local timezone."""
+        tz_name = self._get_user_tz(user_id)
+        try:
+            tz = ZoneInfo(tz_name)
+        except (ZoneInfoNotFoundError, Exception):
+            tz = ZoneInfo(_DEFAULT_TZ)
+        return datetime.now(tz)
 
     async def handle_post_capture(
         self,
@@ -82,7 +106,7 @@ class ScheduleCallbackAdapter:
         slot_end: str,
     ) -> None:
         """HU-R5.2: Create event at explicit time slot."""
-        now = datetime.now(timezone.utc)
+        now = self._local_now(user_id)
         today_str = now.strftime("%Y-%m-%d")
 
         try:
@@ -140,11 +164,13 @@ class ScheduleCallbackAdapter:
                 return
 
         # No conflicts — create the event
+        tz_name = self._get_user_tz(user_id)
         event_id = self._calendar_service.create_calendar_event(
             user_id=user_id,
             title=f"[PPAI] {title}",
             start=slot_start_dt.isoformat(),
             end=slot_end_dt.isoformat(),
+            timezone_name=tz_name,
         )
 
         if event_id:
@@ -166,7 +192,7 @@ class ScheduleCallbackAdapter:
         estimated_minutes: int,
     ) -> None:
         """HU-R5.3: Suggest next free slot for task with duration."""
-        now = datetime.now(timezone.utc)
+        now = self._local_now(user_id)
         today_str = now.strftime("%Y-%m-%d")
 
         # Get user profile for work hours
@@ -321,17 +347,20 @@ class ScheduleCallbackAdapter:
         task = self._task_repo.get_by_id(user_id, task_id)
         title = task.normalized_text if task else "Tarea"
 
-        base_date = datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        # Use naive datetimes — timezone is specified separately in create_calendar_event
+        base_date = datetime.strptime(date_str, "%Y-%m-%d")
         sh, sm = map(int, start_str.split(":"))
         eh, em = map(int, end_str.split(":"))
         start_dt = base_date.replace(hour=sh, minute=sm)
         end_dt = base_date.replace(hour=eh, minute=em)
 
+        tz_name = self._get_user_tz(user_id)
         event_id = self._calendar_service.create_calendar_event(
             user_id=user_id,
             title=f"[PPAI] {title}",
             start=start_dt.isoformat(),
             end=end_dt.isoformat(),
+            timezone_name=tz_name,
         )
 
         if event_id:
@@ -349,7 +378,7 @@ class ScheduleCallbackAdapter:
             await query.edit_message_text("No pude encontrar la tarea. Usa /plan.")
             return
 
-        now = datetime.now(timezone.utc)
+        now = self._local_now(user_id)
         today_str = now.strftime("%Y-%m-%d")
         events = self._calendar_service.get_events_for_date(user_id, today_str)
         occupied = [(e.start, e.end) for e in events if not e.is_all_day]
@@ -369,11 +398,13 @@ class ScheduleCallbackAdapter:
             if slot.duration_minutes >= task.estimated_minutes:
                 start_dt = slot.start
                 end_dt = start_dt + timedelta(minutes=task.estimated_minutes)
+                tz_name = self._get_user_tz(user_id)
                 event_id = self._calendar_service.create_calendar_event(
                     user_id=user_id,
                     title=f"[PPAI] {task.normalized_text}",
                     start=start_dt.isoformat(),
                     end=end_dt.isoformat(),
+                    timezone_name=tz_name,
                 )
                 if event_id:
                     await query.edit_message_text(
@@ -397,19 +428,21 @@ class ScheduleCallbackAdapter:
         task = self._task_repo.get_by_id(user_id, task_id)
         title = task.normalized_text if task else "Tarea"
 
-        tomorrow = datetime.now(timezone.utc) + timedelta(days=1)
+        tomorrow = self._local_now(user_id) + timedelta(days=1)
         tomorrow_str = tomorrow.strftime("%Y-%m-%d")
-        base_date = datetime.strptime(tomorrow_str, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        base_date = datetime.strptime(tomorrow_str, "%Y-%m-%d")
         sh, sm = map(int, start_str.split(":"))
         eh, em = map(int, end_str.split(":"))
         start_dt = base_date.replace(hour=sh, minute=sm)
         end_dt = base_date.replace(hour=eh, minute=em)
 
+        tz_name = self._get_user_tz(user_id)
         event_id = self._calendar_service.create_calendar_event(
             user_id=user_id,
             title=f"[PPAI] {title}",
             start=start_dt.isoformat(),
             end=end_dt.isoformat(),
+            timezone_name=tz_name,
         )
 
         if event_id:

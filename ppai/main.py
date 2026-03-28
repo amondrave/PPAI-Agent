@@ -192,6 +192,7 @@ def build_app() -> Application:
         block_planner=block_planner,
         task_repo=task_repo,
         profile_service=profile_service,
+        prefs_repo=prefs_repo,
     )
     capture_adapter._schedule_adapter = schedule_adapter
 
@@ -206,6 +207,12 @@ def build_app() -> Application:
     # Reconstruct zen sessions from persisted preferences
     all_prefs = prefs_repo.get_all()
     zen_manager.reconstruct_from_prefs(all_prefs)
+
+    # Pre-populate UserRegistry from known users (preferences + profiles)
+    # so the NudgeScheduler can send notifications even after bot restart
+    for p in all_prefs:
+        user_registry.register(p.user_id)
+    logger.info("UserRegistry pre-populated with %d users from preferences", len(user_registry))
 
     # UOW-03: Push & Scheduling (extended by UOW-05 and ER3)
     telegram_push = TelegramPushAdapter(bot_token=settings.telegram_bot_token)

@@ -234,10 +234,17 @@ class CalendarTelegramAdapter:
 
         user_id = str(update.effective_user.id)
 
-        # Determine target date
+        # Determine target date using user's local timezone
         args = context.args if context.args else []
-        now = datetime.now(timezone.utc)
-        if args and args[0].lower() == "tomorrow":
+        from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+        try:
+            # Try to get user's timezone from preferences
+            from ppai.push.domain.entities import UserNudgePreferences
+            tz = ZoneInfo("America/Bogota")  # default
+        except (ZoneInfoNotFoundError, Exception):
+            tz = ZoneInfo("America/Bogota")
+        now = datetime.now(tz)
+        if args and args[0].lower() in ("tomorrow", "manana", "mañana"):
             target_date = (now + timedelta(days=1)).strftime("%Y-%m-%d")
             date_label = "manana"
         else:
@@ -277,13 +284,16 @@ class CalendarTelegramAdapter:
         task_dicts = []
         for task in all_tasks:
             tags = [task.tag] if task.tag else []
-            category = self._classifier.classify(task.normalized_text, tags)
-            estimated = self._classifier.estimate_minutes(task.normalized_text)
+            category_val = task.category or self._classifier.classify(task.normalized_text, tags).value
+            # Prefer task's own estimated_minutes (set by user or classifier at capture)
+            estimated = task.estimated_minutes or self._classifier.estimate_minutes(task.normalized_text)
             task_dicts.append({
                 "task_id": task.task_id,
                 "title": task.normalized_text,
-                "category": category.value,
+                "category": category_val if isinstance(category_val, str) else category_val.value,
                 "estimated_minutes": estimated,
+                "requested_slot_start": task.requested_slot_start,
+                "requested_slot_end": task.requested_slot_end,
             })
 
         # Generate plan
