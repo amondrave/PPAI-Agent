@@ -104,15 +104,15 @@ class CalendarTelegramAdapter:
             auth_url = self._oauth_service.generate_auth_url()
 
             await update.message.reply_text(
-                "\U0001f4c5 *Conectar Google Calendar*\n\n"
-                f"1. Abre este link en tu navegador:\n{auth_url}\n\n"
+                "\U0001f4c5 <b>Conectar Google Calendar</b>\n\n"
+                f'1. Abre este link en tu navegador:\n<a href="{auth_url}">Autorizar Google Calendar</a>\n\n'
                 "2. Autoriza el acceso a tu calendario\n\n"
                 "3. Google te redirigira a una pagina que no carga — "
                 "eso es normal\n\n"
-                "4. Copia el valor de `code=` de la barra de direccion "
+                "4. Copia el valor de <code>code=</code> de la barra de direccion "
                 "y pegalo aqui\n\n"
                 "Escribe /cancel para cancelar.",
-                parse_mode="Markdown",
+                parse_mode="HTML",
             )
             return ASK_CODE
         except Exception as exc:
