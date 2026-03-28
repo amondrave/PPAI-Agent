@@ -55,10 +55,6 @@ class OnboardingTelegramAdapter:
             entry_points=[
                 CommandHandler("setup", self._setup_command),
                 CommandHandler("start", self._start_command),
-                MessageHandler(
-                    filters.TEXT & ~filters.COMMAND,
-                    self._auto_start,
-                ),
             ],
             states={
                 STATE_NAME: [
