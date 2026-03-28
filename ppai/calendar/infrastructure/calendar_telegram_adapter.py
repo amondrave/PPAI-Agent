@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time as _time
 from datetime import datetime, timedelta, timezone
 from functools import partial
 
@@ -80,14 +81,10 @@ class CalendarTelegramAdapter:
                 ASK_CODE: [
                     MessageHandler(filters.TEXT & ~filters.COMMAND, self._calendar_code),
                 ],
-                ConversationHandler.TIMEOUT: [
-                    MessageHandler(filters.ALL, self._calendar_timeout),
-                ],
             },
             fallbacks=[CommandHandler("cancel", self._calendar_cancel)],
             per_user=True,
             per_chat=True,
-            conversation_timeout=300,  # 5 minutes to paste code, then release handler
         )
 
     async def _calendar_start(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -107,6 +104,10 @@ class CalendarTelegramAdapter:
         try:
             auth_url = self._oauth_service.generate_auth_url()
 
+            # Save timestamp for manual expiry check (no JobQueue available)
+            if context.user_data is not None:
+                context.user_data["calendar_started_at"] = _time.time()
+
             await update.message.reply_text(
                 "\U0001f4c5 <b>Conectar Google Calendar</b>\n\n"
                 f'1. Abre este link en tu navegador:\n<a href="{auth_url}">Autorizar Google Calendar</a>\n\n'
@@ -115,6 +116,7 @@ class CalendarTelegramAdapter:
                 "eso es normal\n\n"
                 "4. Copia el valor de <code>code=</code> de la barra de direccion "
                 "y pegalo aqui\n\n"
+                "Tienes <b>5 minutos</b> para completar el proceso.\n"
                 "Escribe /cancel para cancelar.",
                 parse_mode="HTML",
             )
@@ -132,72 +134,93 @@ class CalendarTelegramAdapter:
             return ConversationHandler.END
 
         user_id = str(update.effective_user.id)
-        raw_input = update.message.text.strip()
 
-        # Extract auth code from various formats users might paste:
-        # - Full URL: http://localhost/?code=XXXX&scope=...
-        # - With prefix: code=XXXX
-        # - Just the code: 4/0Aci98E-XXXX
-        auth_code = raw_input
-        if "code=" in auth_code:
-            from urllib.parse import parse_qs, urlparse
-            try:
-                parsed = urlparse(auth_code)
-                if parsed.query:
-                    params = parse_qs(parsed.query)
-                    auth_code = params.get("code", [auth_code])[0]
-                else:
-                    # Handle "code=XXXX" without URL
-                    auth_code = auth_code.split("code=", 1)[1].split("&")[0]
-            except Exception:
-                auth_code = raw_input
+        try:
+            # Check manual expiry (5 minutes)
+            started_at = (context.user_data or {}).get("calendar_started_at", 0)
+            if _time.time() - started_at > 300:
+                await update.message.reply_text(
+                    "\u23f0 El tiempo para pegar el codigo expiro (5 min).\n"
+                    "Envia /calendar para iniciar de nuevo."
+                )
+                return ConversationHandler.END
 
-        auth_code = auth_code.strip()
+            raw_input = update.message.text.strip()
 
-        if not auth_code:
+            # Extract auth code from various formats users might paste:
+            # - Full URL: http://localhost/?code=XXXX&scope=...
+            # - With prefix: code=XXXX
+            # - Just the code: 4/0Aci98E-XXXX
+            auth_code = raw_input
+            if "code=" in auth_code:
+                from urllib.parse import parse_qs, urlparse
+                try:
+                    parsed = urlparse(auth_code)
+                    if parsed.query:
+                        params = parse_qs(parsed.query)
+                        auth_code = params.get("code", [auth_code])[0]
+                    else:
+                        auth_code = auth_code.split("code=", 1)[1].split("&")[0]
+                except Exception:
+                    auth_code = raw_input
+
+            auth_code = auth_code.strip()
+
+            if not auth_code:
+                await update.message.reply_text(
+                    "\u274c No recibi un codigo valido. Intenta de nuevo con /calendar."
+                )
+                return ConversationHandler.END
+
             await update.message.reply_text(
-                "\u274c No recibi un codigo. Intenta de nuevo con /calendar."
+                "\u23f3 Codigo recibido. Verificando autorizacion con Google..."
             )
+
+            loop = asyncio.get_event_loop()
+            success = await loop.run_in_executor(
+                None, partial(self._calendar_service.connect, user_id, auth_code),
+            )
+            if not success:
+                await update.message.reply_text(
+                    "\u274c No se pudo verificar la autorizacion.\n\n"
+                    "Posibles causas:\n"
+                    "- El codigo ya fue usado (solo sirve una vez)\n"
+                    "- Copiaste el codigo incompleto\n\n"
+                    "Envia /calendar para intentar de nuevo."
+                )
+                return ConversationHandler.END
+
+            # Show confirmation with next 3 events
+            events = self._calendar_service.get_events_today(user_id)
+            confirmation = "\u2705 <b>Google Calendar conectado exitosamente!</b>\n\n"
+
+            if events:
+                confirmation += "\U0001f4c6 Proximos eventos de hoy:\n"
+                for event in events[:3]:
+                    time_str = event.start.strftime("%H:%M")
+                    confirmation += f"  \u2022 {time_str} — {event.title}\n"
+            else:
+                confirmation += "No tienes eventos para hoy."
+
+            confirmation += "\n\nUsa /plan para generar tu plan del dia."
+            await update.message.reply_text(confirmation, parse_mode="HTML")
             return ConversationHandler.END
 
-        await update.message.reply_text("\u23f3 Verificando autorizacion...")
-
-        loop = asyncio.get_event_loop()
-        success = await loop.run_in_executor(
-            None, partial(self._calendar_service.connect, user_id, auth_code),
-        )
-        if not success:
+        except Exception as exc:
+            logger.error(
+                "Error processing calendar auth code",
+                extra={"user_id": user_id, "error": str(exc)},
+            )
             await update.message.reply_text(
-                "\u274c No se pudo verificar la autorizacion.\n"
-                "Asegurate de haber completado los pasos en el navegador "
-                "e intenta de nuevo con /calendar."
+                "\u274c Ocurrio un error al procesar el codigo.\n"
+                "Envia /calendar para intentar de nuevo."
             )
             return ConversationHandler.END
-
-        # Show confirmation with next 3 events
-        events = self._calendar_service.get_events_today(user_id)
-        confirmation = "\u2705 *Google Calendar conectado exitosamente!*\n\n"
-
-        if events:
-            confirmation += "\U0001f4c6 Proximos eventos de hoy:\n"
-            for event in events[:3]:
-                time_str = event.start.strftime("%H:%M")
-                confirmation += f"  \u2022 {time_str} — {event.title}\n"
-        else:
-            confirmation += "No tienes eventos para hoy."
-
-        confirmation += "\n\nUsa /plan para generar tu plan del dia."
-        await update.message.reply_text(confirmation, parse_mode="Markdown")
-        return ConversationHandler.END
 
     async def _calendar_cancel(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         """Cancel the OAuth flow."""
         if update.message:
             await update.message.reply_text("Conexion de calendario cancelada.")
-        return ConversationHandler.END
-
-    async def _calendar_timeout(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-        """Handle conversation timeout — free the handler so capture works again."""
         return ConversationHandler.END
 
     # ------------------------------------------------------------------
