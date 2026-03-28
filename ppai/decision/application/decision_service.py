@@ -80,9 +80,11 @@ class DecisionService:
             ranked = tuple(top_scores)
 
             # BR-DEC-04 — transition selected tasks: pending → prioritized
+            # ER3: increment days_in_top3 for friction detection
             for score in top_scores:
                 task = task_by_id[score.task_id]
                 task.status = TaskStatus.PRIORITIZED
+                task.days_in_top3 = getattr(task, "days_in_top3", 0) + 1
                 task.updated_at = now
                 self._task_repo.save(task)
         else:

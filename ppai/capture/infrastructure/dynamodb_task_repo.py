@@ -36,6 +36,10 @@ class DynamoDBTaskStateRepository:
             item["snoozedUntil"] = task.snoozed_until.isoformat()
         if task.completed_at is not None:
             item["completedAt"] = task.completed_at.isoformat()
+        if task.days_in_top3:
+            item["daysInTop3"] = task.days_in_top3
+        if task.friction_notes:
+            item["frictionNotes"] = task.friction_notes
         self._table.put_item(Item=item)
 
     def get_by_id(self, user_id: str, task_id: str) -> TaskState | None:
@@ -132,6 +136,8 @@ class DynamoDBTaskStateRepository:
                 if item.get("completedAt")
                 else None
             ),
+            days_in_top3=int(item.get("daysInTop3", 0)),
+            friction_notes=list(item.get("frictionNotes", [])),
             created_at=datetime.fromisoformat(item["createdAt"]),
             updated_at=datetime.fromisoformat(item["updatedAt"]),
         )

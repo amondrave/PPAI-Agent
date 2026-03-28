@@ -28,14 +28,20 @@ from ppai.profile.application.profile_service import ProfileService
 from ppai.profile.infrastructure.dynamodb_profile_repo import DynamoDBProfileRepository
 from ppai.profile.infrastructure.onboarding_telegram_adapter import OnboardingTelegramAdapter
 from ppai.profile.infrastructure.profile_telegram_adapter import ProfileTelegramAdapter
+from ppai.push.application.block_reminder_service import BlockReminderService
 from ppai.push.application.daily_summary_builder import DailySummaryBuilder
+from ppai.push.application.friction_detector import FrictionDetector
+from ppai.push.application.gap_detector import GapDetector
+from ppai.push.application.midday_checkin import MiddayCheckin
 from ppai.push.application.nudge_scheduler import NudgeScheduler
 from ppai.push.application.nudge_service import NudgeService
 from ppai.push.application.rescue_evaluator import RescueEvaluator
+from ppai.push.application.weekly_reporter import WeeklyReporter
 from ppai.push.application.zen_session_manager import ZenSessionManager
 from ppai.push.infrastructure.cycle_event_repo import DynamoDBCycleEventRepository
 from ppai.push.infrastructure.dynamodb_preferences_repo import DynamoDBPreferencesRepository
 from ppai.push.infrastructure.config_telegram_adapter import ConfigTelegramAdapter
+from ppai.push.infrastructure.er3_callback_adapter import ER3CallbackAdapter
 from ppai.push.infrastructure.telegram_push_adapter import TelegramPushAdapter
 from ppai.push.infrastructure.zen_telegram_adapter import ZenTelegramAdapter
 from ppai.respond.application.response_service import ResponseService
@@ -125,38 +131,7 @@ def build_app() -> Application:
     )
     response_adapter = ResponseTelegramAdapter(response_service, user_registry)
 
-    # UOW-05: Zen, DailySummary, Rescue
-    zen_manager = ZenSessionManager()
-    daily_summary_builder = DailySummaryBuilder(task_repo)
-    rescue_evaluator = RescueEvaluator()
-
-    # Reconstruct zen sessions from persisted preferences
-    all_prefs = prefs_repo.get_all()
-    zen_manager.reconstruct_from_prefs(all_prefs)
-
-    # UOW-03: Push & Scheduling (extended by UOW-05)
-    telegram_push = TelegramPushAdapter(bot_token=settings.telegram_bot_token)
-    nudge_service = NudgeService(
-        prefs_repo=prefs_repo,
-        cycle_event_repo=cycle_event_repo,
-        task_repo=task_repo,
-        telegram_port=telegram_push,
-        decision_service=decision_service,
-        zen_manager=zen_manager,
-        daily_summary_builder=daily_summary_builder,
-        rescue_evaluator=rescue_evaluator,
-        profile_repo=profile_repo,
-    )
-    nudge_scheduler = NudgeScheduler(
-        nudge_service=nudge_service,
-        user_ids_provider=user_registry.get_all,
-        interval_provider=zen_manager.get_min_interval,
-    )
-
-    # UOW-05: /zen command
-    zen_adapter = ZenTelegramAdapter(prefs_repo, cycle_event_repo, zen_manager)
-
-    # ER2: Google Calendar & Block Planning
+    # ER2: Google Calendar & Block Planning (moved up for ER3 dependencies)
     oauth_service = GoogleOAuthService(
         client_id=settings.google_client_id,
         client_secret=settings.google_client_secret,
@@ -178,6 +153,88 @@ def build_app() -> Application:
         task_repo=task_repo,
         category_classifier=category_classifier,
         calendar_sync=calendar_sync,
+    )
+
+    # UOW-05: Zen, DailySummary, Rescue
+    zen_manager = ZenSessionManager()
+    daily_summary_builder = DailySummaryBuilder(task_repo)
+    rescue_evaluator = RescueEvaluator()
+
+    # Reconstruct zen sessions from persisted preferences
+    all_prefs = prefs_repo.get_all()
+    zen_manager.reconstruct_from_prefs(all_prefs)
+
+    # UOW-03: Push & Scheduling (extended by UOW-05 and ER3)
+    telegram_push = TelegramPushAdapter(bot_token=settings.telegram_bot_token)
+
+    # ER3: Proactive intelligent notifications
+    block_reminder_service = BlockReminderService(
+        block_repo=block_repo,
+        telegram_port=telegram_push,
+        cycle_event_repo=cycle_event_repo,
+        profile_repo=profile_repo,
+    )
+    gap_detector = GapDetector(
+        calendar_service=calendar_service,
+        profile_service=profile_service,
+        telegram_port=telegram_push,
+        cycle_event_repo=cycle_event_repo,
+    )
+    friction_detector = FrictionDetector(
+        task_repo=task_repo,
+        block_repo=block_repo,
+        profile_repo=profile_repo,
+        cycle_event_repo=cycle_event_repo,
+        telegram_port=telegram_push,
+    )
+    weekly_reporter = WeeklyReporter(
+        task_repo=task_repo,
+        block_repo=block_repo,
+        calendar_service=calendar_service,
+        profile_repo=profile_repo,
+        cycle_event_repo=cycle_event_repo,
+        telegram_port=telegram_push,
+    )
+    midday_checkin = MiddayCheckin(
+        block_repo=block_repo,
+        profile_service=profile_service,
+        telegram_port=telegram_push,
+        cycle_event_repo=cycle_event_repo,
+    )
+
+    nudge_service = NudgeService(
+        prefs_repo=prefs_repo,
+        cycle_event_repo=cycle_event_repo,
+        task_repo=task_repo,
+        telegram_port=telegram_push,
+        decision_service=decision_service,
+        zen_manager=zen_manager,
+        daily_summary_builder=daily_summary_builder,
+        rescue_evaluator=rescue_evaluator,
+        profile_repo=profile_repo,
+        block_reminder_service=block_reminder_service,
+        gap_detector=gap_detector,
+        friction_detector=friction_detector,
+        weekly_reporter=weekly_reporter,
+        midday_checkin=midday_checkin,
+    )
+    nudge_scheduler = NudgeScheduler(
+        nudge_service=nudge_service,
+        user_ids_provider=user_registry.get_all,
+        interval_provider=zen_manager.get_min_interval,
+        block_repo=block_repo,
+    )
+
+    # UOW-05: /zen command
+    zen_adapter = ZenTelegramAdapter(prefs_repo, cycle_event_repo, zen_manager)
+
+    # ER3: Callback adapter for proactive notification responses
+    er3_adapter = ER3CallbackAdapter(
+        block_repo=block_repo,
+        task_repo=task_repo,
+        friction_detector=friction_detector,
+        decision_service=decision_service,
+        user_registry=user_registry,
     )
 
     application = (
@@ -219,6 +276,38 @@ def build_app() -> Application:
         CallbackQueryHandler(
             calendar_adapter.block_callback_handler,
             pattern=r"^block_(done|skip):.+$",
+        )
+    )
+
+    # ER3: Block reminder callbacks (start, delay, skip_reminder, complete, more_time, no_progress)
+    application.add_handler(
+        CallbackQueryHandler(
+            er3_adapter.callback_handler,
+            pattern=r"^block_(start|delay|skip_reminder|complete|more_time|no_progress):.+$",
+        )
+    )
+
+    # ER3: Friction detector callbacks
+    application.add_handler(
+        CallbackQueryHandler(
+            er3_adapter.callback_handler,
+            pattern=r"^friction_(divide|info|delete|pomodoro):.+$",
+        )
+    )
+
+    # ER3: Gap detector callbacks
+    application.add_handler(
+        CallbackQueryHandler(
+            er3_adapter.callback_handler,
+            pattern=r"^gap_(reassign|continue|rest):.+$",
+        )
+    )
+
+    # ER3: Midday check-in callbacks
+    application.add_handler(
+        CallbackQueryHandler(
+            er3_adapter.callback_handler,
+            pattern=r"^midday_(afternoon|unplanned|help|now):.+$",
         )
     )
 

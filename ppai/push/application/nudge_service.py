@@ -17,6 +17,11 @@ from ppai.push.application.ports import CycleEventRepository, PreferencesReposit
 from ppai.push.application.daily_summary_builder import DailySummaryBuilder
 from ppai.push.application.rescue_evaluator import RescueEvaluator
 from ppai.push.application.zen_session_manager import ZenSessionManager
+from ppai.push.application.block_reminder_service import BlockReminderService
+from ppai.push.application.gap_detector import GapDetector
+from ppai.push.application.friction_detector import FrictionDetector
+from ppai.push.application.weekly_reporter import WeeklyReporter
+from ppai.push.application.midday_checkin import MiddayCheckin
 from ppai.push.domain.entities import NudgeMessage, UserNudgePreferences
 from ppai.push.domain.exceptions import NudgeDispatchFailedError, NoTop3AvailableError
 from ppai.push.domain.value_objects import DispatchOutcome, NudgeDispatchStatus
@@ -61,6 +66,12 @@ class NudgeService:
         daily_summary_builder: Optional[DailySummaryBuilder] = None,
         rescue_evaluator: Optional[RescueEvaluator] = None,
         profile_repo: Optional[ProfileRepository] = None,
+        # ER3: Proactive intelligent notifications
+        block_reminder_service: Optional[BlockReminderService] = None,
+        gap_detector: Optional[GapDetector] = None,
+        friction_detector: Optional[FrictionDetector] = None,
+        weekly_reporter: Optional[WeeklyReporter] = None,
+        midday_checkin: Optional[MiddayCheckin] = None,
     ) -> None:
         self._prefs_repo = prefs_repo
         self._cycle_event_repo = cycle_event_repo
@@ -73,6 +84,12 @@ class NudgeService:
         self._rescue_evaluator = rescue_evaluator
         # ER1: Profile-aware tone
         self._profile_repo = profile_repo
+        # ER3: Proactive intelligent notifications
+        self._block_reminder_service = block_reminder_service
+        self._gap_detector = gap_detector
+        self._friction_detector = friction_detector
+        self._weekly_reporter = weekly_reporter
+        self._midday_checkin = midday_checkin
 
     # ------------------------------------------------------------------
     # Public API
@@ -136,6 +153,67 @@ class NudgeService:
             if outcome:
                 results.append(outcome)
         # If zen not active, no regular nudges either (BR-SCHED-13)
+
+        # ------------------------------------------------------------------
+        # ER3: Proactive intelligent notifications
+        # ------------------------------------------------------------------
+
+        # 4. Block reminders (every tick when blocks active)
+        if self._block_reminder_service:
+            try:
+                block_outcomes = self._block_reminder_service.evaluate_block_reminders(
+                    user_id, local_now, cycle.cycle_id,
+                )
+                results.extend(block_outcomes)
+            except Exception as exc:
+                logger.error("er3.block_reminder_error", user_id=user_id, error=str(exc))
+
+        # 5. Gap detection (every 15 min if calendar connected)
+        if self._gap_detector:
+            try:
+                gap_outcome = self._gap_detector.evaluate_gaps(
+                    user_id, local_now, cycle.cycle_id,
+                )
+                if gap_outcome:
+                    results.append(gap_outcome)
+            except Exception as exc:
+                logger.error("er3.gap_detector_error", user_id=user_id, error=str(exc))
+
+        # 6. Friction detection (once daily, morning)
+        if self._friction_detector and prefs.is_within_start_window(local_now):
+            try:
+                friction_outcome = self._friction_detector.evaluate_friction(
+                    user_id, local_now, cycle.cycle_id,
+                )
+                if friction_outcome:
+                    results.append(friction_outcome)
+            except Exception as exc:
+                logger.error("er3.friction_detector_error", user_id=user_id, error=str(exc))
+
+        # 7. Weekly report (Sunday evening / Monday morning)
+        if self._weekly_reporter:
+            try:
+                if self._weekly_reporter.should_send_report(
+                    user_id, local_now, prefs, cycle.cycle_id,
+                ):
+                    report_outcome = self._weekly_reporter.generate_and_send_report(
+                        user_id, local_now, cycle.cycle_id,
+                    )
+                    if report_outcome:
+                        results.append(report_outcome)
+            except Exception as exc:
+                logger.error("er3.weekly_reporter_error", user_id=user_id, error=str(exc))
+
+        # 8. Midday check-in (once daily, midpoint of workday)
+        if self._midday_checkin:
+            try:
+                midday_outcome = self._midday_checkin.evaluate_midday(
+                    user_id, local_now, cycle.cycle_id, prefs,
+                )
+                if midday_outcome:
+                    results.append(midday_outcome)
+            except Exception as exc:
+                logger.error("er3.midday_checkin_error", user_id=user_id, error=str(exc))
 
         return results
 
