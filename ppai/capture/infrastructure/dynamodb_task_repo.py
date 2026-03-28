@@ -45,6 +45,8 @@ class DynamoDBTaskStateRepository:
             item["requestedSlotStart"] = task.requested_slot_start
         if task.requested_slot_end is not None:
             item["requestedSlotEnd"] = task.requested_slot_end
+        if task.has_explicit_time:
+            item["hasExplicitTime"] = True
         self._table.put_item(Item=item)
 
     def get_by_id(self, user_id: str, task_id: str) -> TaskState | None:
@@ -145,6 +147,7 @@ class DynamoDBTaskStateRepository:
             friction_notes=list(item.get("frictionNotes", [])),
             requested_slot_start=item.get("requestedSlotStart"),
             requested_slot_end=item.get("requestedSlotEnd"),
+            has_explicit_time=bool(item.get("hasExplicitTime", False)),
             created_at=datetime.fromisoformat(item["createdAt"]),
             updated_at=datetime.fromisoformat(item["updatedAt"]),
         )

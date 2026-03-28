@@ -19,8 +19,9 @@ from ppai.shared.domain.base_entity import generate_id
 
 logger = logging.getLogger(__name__)
 
-# ER5: Time slot pattern — #HH:MM-HH:MM (e.g., #15:00-15:30)
+# ER5: Time slot patterns — #HH:MM-HH:MM (range) or #HH:MM (single, defaults to 1h block)
 _TIME_SLOT_RE = re.compile(r"#(\d{1,2}:\d{2})-(\d{1,2}:\d{2})")
+_TIME_SINGLE_RE = re.compile(r"#(\d{1,2}:\d{2})(?!\S)")
 
 # ER5: Duration patterns — "30min", "1h", "1.5h", "45 minutos", "2 horas"
 _DURATION_PATTERNS: list[tuple[re.Pattern[str], str]] = [
@@ -108,6 +109,7 @@ class CaptureService:
             if slot_start and slot_end:
                 task.requested_slot_start = slot_start
                 task.requested_slot_end = slot_end
+                task.has_explicit_time = True
                 # Calculate estimated_minutes from slot
                 try:
                     sh, sm = map(int, slot_start.split(":"))
@@ -118,6 +120,7 @@ class CaptureService:
                 self._task_repo.save(task)
             elif explicit_duration:
                 task.estimated_minutes = explicit_duration
+                task.has_explicit_time = True
                 self._task_repo.save(task)
             self._classify_task(task)
             result.created.append(task)
@@ -160,7 +163,13 @@ class CaptureService:
         return " ".join(parts)
 
     def _classify_task(self, task: TaskState) -> None:
-        """Classify task: try LLM first (ER4), fall back to regex (ER2)."""
+        """Classify task: try LLM first (ER4), fall back to regex (ER2).
+
+        Note: if the user provided an explicit duration (has_explicit_time=True),
+        we preserve their estimated_minutes and only update category.
+        """
+        user_provided_minutes = task.estimated_minutes if task.has_explicit_time else None
+
         # ER4: Try LLM-based analysis first
         if self._task_analyzer is not None:
             try:
@@ -168,7 +177,7 @@ class CaptureService:
                 analysis = self._task_analyzer.analyze(task.normalized_text, occupation)
                 if analysis is not None:
                     task.category = analysis.category
-                    task.estimated_minutes = analysis.estimated_minutes
+                    task.estimated_minutes = user_provided_minutes or analysis.estimated_minutes
                     self._task_repo.save(task)
                     return
             except Exception:
@@ -183,7 +192,7 @@ class CaptureService:
         try:
             tags = [task.tag] if task.tag else []
             task.category = self._category_classifier.classify(task.normalized_text, tags).value
-            task.estimated_minutes = self._category_classifier.estimate_minutes(task.normalized_text)
+            task.estimated_minutes = user_provided_minutes or self._category_classifier.estimate_minutes(task.normalized_text)
             self._task_repo.save(task)
         except Exception:
             logger.warning(
@@ -224,15 +233,36 @@ class CaptureService:
         return original, normalized
 
     def _extract_time_slot(self, text: str) -> tuple[str, str | None, str | None]:
-        """ER5: Extract explicit time slot (#HH:MM-HH:MM) from text."""
+        """ER5: Extract time slot from text.
+
+        Supports:
+        - #HH:MM-HH:MM (range, e.g., #15:00-16:30)
+        - #HH:MM (single time, defaults to 1-hour block)
+        """
+        # Try range first
         match = _TIME_SLOT_RE.search(text)
-        if not match:
-            return text, None, None
-        slot_start = match.group(1)
-        slot_end = match.group(2)
-        text = text[: match.start()] + text[match.end() :]
-        text = " ".join(text.split())
-        return text, slot_start, slot_end
+        if match:
+            slot_start = match.group(1)
+            slot_end = match.group(2)
+            text = text[: match.start()] + text[match.end() :]
+            text = " ".join(text.split())
+            return text, slot_start, slot_end
+
+        # Try single time (default 1h block)
+        match = _TIME_SINGLE_RE.search(text)
+        if match:
+            slot_start = match.group(1)
+            try:
+                h, m = map(int, slot_start.split(":"))
+                end_h = h + 1
+                slot_end = f"{end_h:02d}:{m:02d}"
+            except (ValueError, TypeError):
+                return text, None, None
+            text = text[: match.start()] + text[match.end() :]
+            text = " ".join(text.split())
+            return text, slot_start, slot_end
+
+        return text, None, None
 
     def _extract_duration(self, text: str) -> tuple[str, int | None]:
         """ER5: Extract duration (30min, 1h, 45 minutos) from text."""
@@ -255,12 +285,16 @@ class CaptureService:
         tag = None
         deadline = None
 
-        # ER5: Extract time slot BEFORE hashtag extraction (it uses # prefix too)
+        # ER5: Extract time slots BEFORE hashtag extraction (they use # prefix too)
         slot_match = _TIME_SLOT_RE.search(text)
         if slot_match:
-            # Remove the time slot from text so _HASHTAG_RE doesn't eat it
             text = text[: slot_match.start()] + text[slot_match.end() :]
             text = " ".join(text.split())
+        else:
+            single_match = _TIME_SINGLE_RE.search(text)
+            if single_match:
+                text = text[: single_match.start()] + text[single_match.end() :]
+                text = " ".join(text.split())
 
         tag_match = _HASHTAG_RE.search(text)
         if tag_match:

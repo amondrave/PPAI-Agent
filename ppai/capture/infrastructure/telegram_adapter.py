@@ -51,10 +51,10 @@ class TelegramAdapter:
             confirmation = self._capture_service.build_confirmation(result)
             await update.message.reply_text(confirmation)
 
-            # ER5: Trigger calendar scheduling for tasks with time info
+            # ER5: Trigger calendar scheduling for tasks with explicit time info
             if self._schedule_adapter and result.created:
                 for task in result.created:
-                    if task.requested_slot_start or task.estimated_minutes:
+                    if task.has_explicit_time:
                         try:
                             await self._schedule_adapter.handle_post_capture(
                                 update=update,
@@ -66,7 +66,7 @@ class TelegramAdapter:
                                 slot_end=task.requested_slot_end,
                             )
                         except Exception:
-                            logger.warning(
+                            logger.exception(
                                 "ER5: Schedule post-capture failed",
                                 extra={"task_id": task.task_id},
                             )
