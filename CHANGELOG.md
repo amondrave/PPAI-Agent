@@ -11,6 +11,39 @@ Versionado: [Semantic Versioning](https://semver.org/)
 
 ---
 
+## [v1.0.0] — 2026-03-28
+
+### ✨ Added — ER1 Onboarding y Perfil de Usuario (HU-R1.1 → HU-R1.4)
+
+- Implementado módulo completo `ppai/profile/` con arquitectura hexagonal (domain, application, infrastructure).
+- Implementado **flujo de onboarding conversacional** multi-paso con `ConversationHandler`: al enviar el primer mensaje, PPAI guía al usuario por nombre, ocupación, horario laboral, bloques protegidos y estilo de comunicación. Si el usuario abandona, retoma donde se quedó. (#14)
+- Implementada **persistencia de perfil** en nueva tabla DynamoDB `ppai-user-profiles`: consulta con `/perfil`, modificación individual con `/config nombre|estilo|horario|pais|finde`.
+- Implementado **soporte de festivos y días libres**: festivos automáticos por país vía librería `holidays`, modo de fin de semana configurable (descanso/personal/mixto), días libres personalizados con `/libre`.
+- Implementada **personalización del tono** en todos los mensajes existentes del bot (daily start, daily end, nudges, rescue): 3 variantes (gentle/direct/confrontational) adaptadas al `communication_style` del perfil. Fallback a tono neutro si no hay perfil.
+- Comando `/setup` permite re-ejecutar el onboarding completo en cualquier momento con confirmación antes de sobreescribir.
+
+### ✨ Added — ER2 Google Calendar y Bloques de Tiempo (HU-R2.1 → HU-R2.5)
+
+- Implementado módulo completo `ppai/calendar/` con arquitectura hexagonal (domain, application, infrastructure).
+- Implementada **conexión con Google Calendar vía OAuth 2.0**: comando `/calendar` devuelve enlace de autorización, usuario pega el código, bot confirma conexión mostrando próximos 3 eventos. (#14)
+- Implementada **persistencia segura de tokens**: access y refresh tokens encriptados con Fernet (clave simétrica en env var `FERNET_ENCRYPTION_KEY`), renovación automática si expira, notificación si se revoca.
+- Implementado **BlockPlanner**: algoritmo que detecta huecos libres en el calendario, asigna tareas priorizadas a esos huecos respetando horario laboral, bloques protegidos y categoría de tarea, con buffer de 10 minutos entre bloques y soporte para dividir tareas grandes.
+- Implementada **categorización automática de tareas**: `CategoryClassifier` con 6 categorías (work, personal, learning, health, social, errand) por keywords y override con hashtag (#work, #personal, etc.). Campo `estimated_minutes` con detección de patrones temporales.
+- Implementada **creación de eventos en Google Calendar**: al confirmar plan, se crean eventos con prefijo `[PPAI]`. Sync best-effort que no bloquea si Calendar falla.
+- Implementados comandos `/plan` (plan de hoy con bloques e inline buttons) y `/plan tomorrow`. Callbacks `block_done`/`block_skip` para gestionar bloques desde Telegram.
+- Extendido `TaskState` con campos `category` y `estimated_minutes` — backward compatible con tareas existentes.
+
+### ⚙️ Infra
+
+- Agregadas 3 tablas DynamoDB nuevas en Terraform: `ppai-user-profiles` (ER1), `ppai-calendar-auth` (ER2, con cifrado en reposo), `ppai-time-blocks` (ER2, PK: userId, SK: date#blockId).
+- Extendido IAM Task Role con permisos para las 3 tablas nuevas (least privilege): GetItem, PutItem, UpdateItem para profiles; + DeleteItem para auth tokens; + Query y BatchWriteItem para time blocks.
+- Pipeline CI/CD actualizado para inyectar 3 nuevos secrets: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `FERNET_ENCRYPTION_KEY` como variables de Terraform al contenedor ECS.
+- Actualizado `.env.example` con sección de Google Calendar y comando para generar clave Fernet.
+- Agregadas 5 dependencias: `holidays`, `google-auth`, `google-auth-oauthlib`, `google-api-python-client`, `cryptography`.
+- Total del proyecto: **466 tests passing**, 0 failures.
+
+---
+
 ## [v0.9.0] — 2026-03-27
 
 ### ✨ Added — UOW-05 Scheduler Bot Nativo
@@ -256,7 +289,8 @@ Versionado: [Semantic Versioning](https://semver.org/)
 
 ---
 
-[Unreleased]: https://github.com/amondrave/PPAI-Agent/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/amondrave/PPAI-Agent/compare/v1.0.0...HEAD
+[v1.0.0]: https://github.com/amondrave/PPAI-Agent/compare/v0.9.0...v1.0.0
 [v0.9.0]: https://github.com/amondrave/PPAI-Agent/compare/v0.8.0...v0.9.0
 [v0.8.0]: https://github.com/amondrave/PPAI-Agent/compare/v0.7.0...v0.8.0
 [v0.7.0]: https://github.com/amondrave/PPAI-Agent/compare/v0.6.1...v0.7.0

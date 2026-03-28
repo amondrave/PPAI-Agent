@@ -30,6 +30,9 @@ resource "aws_ecs_task_definition" "bot" {
       { name = "ACTIVE_TASK_LIMIT", value = "50" },
       { name = "DEDUP_WINDOW_SECONDS", value = "300" },
       { name = "RATE_LIMIT_PER_MINUTE", value = "10" },
+      { name = "GOOGLE_CLIENT_ID", value = var.google_client_id },
+      { name = "GOOGLE_CLIENT_SECRET", value = var.google_client_secret },
+      { name = "FERNET_ENCRYPTION_KEY", value = var.fernet_encryption_key },
     ]
 
     logConfiguration = {

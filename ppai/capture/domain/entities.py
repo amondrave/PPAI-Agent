@@ -50,6 +50,8 @@ class TaskState:
     snooze_count: int = 0
     snoozed_until: datetime | None = None
     completed_at: datetime | None = None
+    category: str | None = None
+    estimated_minutes: int | None = None
     status: TaskStatus = TaskStatus.CAPTURED
     task_id: str = field(default_factory=generate_id)
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))

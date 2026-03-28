@@ -24,6 +24,10 @@ class DynamoDBTaskStateRepository:
         }
         if task.tag is not None:
             item["tag"] = task.tag
+        if task.category is not None:
+            item["category"] = task.category
+        if task.estimated_minutes is not None:
+            item["estimatedMinutes"] = task.estimated_minutes
         if task.deadline is not None:
             item["deadline"] = task.deadline.isoformat()
         if task.snooze_count:
@@ -110,6 +114,8 @@ class DynamoDBTaskStateRepository:
             status=TaskStatus(item["status"]),
             source_intent_id=item["sourceIntentId"],
             tag=item.get("tag"),
+            category=item.get("category"),
+            estimated_minutes=int(item["estimatedMinutes"]) if item.get("estimatedMinutes") else None,
             deadline=(
                 datetime.fromisoformat(item["deadline"])
                 if item.get("deadline")

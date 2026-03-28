@@ -133,3 +133,65 @@ resource "aws_dynamodb_table" "cycles" {
 
   tags = { Name = "${var.table_prefix}-cycles", Unit = "uow-02" }
 }
+
+# ER1: User profile table
+resource "aws_dynamodb_table" "user_profiles" {
+  name         = "${var.table_prefix}-user-profiles"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "userId"
+
+  attribute {
+    name = "userId"
+    type = "S"
+  }
+
+  server_side_encryption {
+    enabled = true
+  }
+
+  deletion_protection_enabled = true
+
+  tags = { Name = "${var.table_prefix}-user-profiles", Unit = "er1" }
+}
+
+# ER2: Calendar OAuth tokens table
+resource "aws_dynamodb_table" "calendar_auth" {
+  name         = "${var.table_prefix}-calendar-auth"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "userId"
+
+  attribute {
+    name = "userId"
+    type = "S"
+  }
+
+  server_side_encryption {
+    enabled = true
+  }
+
+  deletion_protection_enabled = true
+
+  tags = { Name = "${var.table_prefix}-calendar-auth", Unit = "er2" }
+}
+
+# ER2: Time blocks table
+resource "aws_dynamodb_table" "time_blocks" {
+  name         = "${var.table_prefix}-time-blocks"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "userId"
+  range_key    = "date#blockId"
+
+  attribute {
+    name = "userId"
+    type = "S"
+  }
+
+  attribute {
+    name = "date#blockId"
+    type = "S"
+  }
+
+  deletion_protection_enabled = true
+
+  tags = { Name = "${var.table_prefix}-time-blocks", Unit = "er2" }
+}

@@ -208,8 +208,10 @@ class TestRecentActivitySkip:
         # Use a NOW far in the future enough that it's within 60 min of the event
         outcomes = svc.run_tick([USER], now=datetime.now(timezone.utc) + timedelta(minutes=10))
 
-        assert outcomes[0].status == NudgeDispatchStatus.skipped_activity
-        assert outcomes[0].reason == "recent_activity"
+        # Filter to nudge-related outcomes (daily_start may also fire)
+        activity_outcomes = [o for o in outcomes if o.reason == "recent_activity"]
+        assert len(activity_outcomes) == 1
+        assert activity_outcomes[0].status == NudgeDispatchStatus.skipped_activity
         telegram.send_nudge.assert_not_called()
 
 

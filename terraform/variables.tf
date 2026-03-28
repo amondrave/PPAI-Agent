@@ -22,6 +22,24 @@ variable "telegram_bot_token" {
   sensitive   = true
 }
 
+variable "google_client_id" {
+  description = "Google OAuth 2.0 client ID for Calendar integration"
+  type        = string
+  sensitive   = true
+}
+
+variable "google_client_secret" {
+  description = "Google OAuth 2.0 client secret for Calendar integration"
+  type        = string
+  sensitive   = true
+}
+
+variable "fernet_encryption_key" {
+  description = "Fernet symmetric key for encrypting Google tokens at rest"
+  type        = string
+  sensitive   = true
+}
+
 variable "vpc_cidr" {
   description = "CIDR block for the VPC"
   type        = string

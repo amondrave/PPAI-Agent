@@ -33,16 +33,23 @@ _HELP_TEXT = (
 
 
 class ConfigTelegramAdapter:
-    """Handles /config command for nudge preferences."""
+    """Handles /config command for nudge preferences and profile config."""
 
-    def __init__(self, prefs_repo: PreferencesRepository) -> None:
+    def __init__(self, prefs_repo: PreferencesRepository, profile_adapter=None) -> None:
         self._prefs_repo = prefs_repo
+        self._profile_adapter = profile_adapter
 
     async def config_handler(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
         if not update.effective_user or not update.message:
             return
+
+        # Delegate profile-related subcommands first
+        if self._profile_adapter and context.args:
+            handled = await self._profile_adapter.config_profile_handler(update, context)
+            if handled:
+                return
 
         user_id = str(update.effective_user.id)
         args = context.args or []

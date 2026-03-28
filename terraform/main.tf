@@ -18,8 +18,11 @@ module "iam" {
   events_table_arn      = module.dynamodb.events_table_arn
   dedup_table_arn       = module.dynamodb.dedup_table_arn
   cycles_table_arn      = module.dynamodb.cycles_table_arn
-  preferences_table_arn = module.dynamodb.preferences_table_arn
-  ecr_repository_arn    = module.ecr.repository_arn
+  preferences_table_arn   = module.dynamodb.preferences_table_arn
+  user_profiles_table_arn = module.dynamodb.user_profiles_table_arn
+  calendar_auth_table_arn = module.dynamodb.calendar_auth_table_arn
+  time_blocks_table_arn   = module.dynamodb.time_blocks_table_arn
+  ecr_repository_arn      = module.ecr.repository_arn
   log_group_bot_arn     = module.monitoring.log_group_bot_arn
 }
 
@@ -38,4 +41,7 @@ module "ecs" {
   telegram_bot_token      = var.telegram_bot_token
   table_prefix            = var.table_prefix
   aws_region              = var.aws_region
+  google_client_id        = var.google_client_id
+  google_client_secret    = var.google_client_secret
+  fernet_encryption_key   = var.fernet_encryption_key
 }
