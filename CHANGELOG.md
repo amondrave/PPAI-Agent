@@ -11,6 +11,17 @@ Versionado: [Semantic Versioning](https://semver.org/)
 
 ---
 
+## [v1.2.1] — 2026-03-28
+
+### 🐛 Fixed
+
+- Migrado flujo OAuth de Google Calendar de **Device Flow** (tipo "TV y entrada limitada") a **Desktop App** — el device flow no permite el scope `calendar.events` (escritura), solo `calendar.readonly`. Sin este fix, PPAI no podía crear eventos `[PPAI]` en el calendario del usuario.
+- Nuevo flujo para el usuario: `/calendar` muestra un link de autorización → el usuario autoriza en Google → copia el código de la URL de redirección → lo pega en Telegram. Reemplaza el flujo anterior de "ingresa código en google.com/device → escribe listo".
+- Reemplazados `start_device_flow()` y `poll_device_token()` por `generate_auth_url()` y `exchange_code()` en `GoogleOAuthService` — usando `requests.post` directo al token endpoint con `authorization_code` grant y `redirect_uri=http://localhost`.
+- Verificado con test directo contra endpoints de Google: auth URL acepta ambos scopes (`calendar.readonly` + `calendar.events`), token endpoint acepta el client tipo Desktop para `authorization_code` grant.
+
+---
+
 ## [v1.2.0] — 2026-03-28
 
 ### ✨ Added — ER4 LLM como Cerebro del Asistente (HU-R4.1 → HU-R4.4)
@@ -336,7 +347,8 @@ Versionado: [Semantic Versioning](https://semver.org/)
 
 ---
 
-[Unreleased]: https://github.com/amondrave/PPAI-Agent/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/amondrave/PPAI-Agent/compare/v1.2.1...HEAD
+[v1.2.1]: https://github.com/amondrave/PPAI-Agent/compare/v1.2.0...v1.2.1
 [v1.2.0]: https://github.com/amondrave/PPAI-Agent/compare/v1.1.0...v1.2.0
 [v1.1.0]: https://github.com/amondrave/PPAI-Agent/compare/v1.0.0...v1.1.0
 [v1.0.0]: https://github.com/amondrave/PPAI-Agent/compare/v0.9.0...v1.0.0

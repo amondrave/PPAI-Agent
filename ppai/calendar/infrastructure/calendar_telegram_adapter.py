@@ -87,7 +87,7 @@ class CalendarTelegramAdapter:
         )
 
     async def _calendar_start(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-        """Start the OAuth device flow: show user code and wait for confirmation."""
+        """Start the Desktop OAuth flow: show auth URL and wait for code."""
         if not update.effective_user or not update.message:
             return ConversationHandler.END
 
@@ -101,19 +101,16 @@ class CalendarTelegramAdapter:
             )
 
         try:
-            device_info = self._oauth_service.start_device_flow()
-
-            # Store device_code in context for the next step
-            if context.user_data is not None:
-                context.user_data["device_code"] = device_info.device_code
-                context.user_data["device_interval"] = device_info.interval
+            auth_url = self._oauth_service.generate_auth_url()
 
             await update.message.reply_text(
                 "\U0001f4c5 *Conectar Google Calendar*\n\n"
-                f"1. Abre en tu navegador:\n{device_info.verification_url}\n\n"
-                f"2. Ingresa este codigo:\n`{device_info.user_code}`\n\n"
-                "3. Autoriza el acceso a tu calendario\n\n"
-                "4. Cuando termines, escribe *listo*\n\n"
+                f"1. Abre este link en tu navegador:\n{auth_url}\n\n"
+                "2. Autoriza el acceso a tu calendario\n\n"
+                "3. Google te redirigira a una pagina que no carga — "
+                "eso es normal\n\n"
+                "4. Copia el valor de `code=` de la barra de direccion "
+                "y pegalo aqui\n\n"
                 "Escribe /cancel para cancelar.",
                 parse_mode="Markdown",
             )
@@ -126,18 +123,16 @@ class CalendarTelegramAdapter:
             return ConversationHandler.END
 
     async def _calendar_code(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-        """User confirmed authorization — poll for token."""
+        """User pasted the authorization code — exchange for tokens."""
         if not update.effective_user or not update.message or not update.message.text:
             return ConversationHandler.END
 
         user_id = str(update.effective_user.id)
+        auth_code = update.message.text.strip()
 
-        device_code = (context.user_data or {}).get("device_code")
-        interval = (context.user_data or {}).get("device_interval", 5)
-
-        if not device_code:
+        if not auth_code:
             await update.message.reply_text(
-                "\u274c Sesion expirada. Intenta de nuevo con /calendar."
+                "\u274c No recibi un codigo. Intenta de nuevo con /calendar."
             )
             return ConversationHandler.END
 
@@ -145,7 +140,7 @@ class CalendarTelegramAdapter:
 
         loop = asyncio.get_event_loop()
         success = await loop.run_in_executor(
-            None, partial(self._calendar_service.connect, user_id, device_code),
+            None, partial(self._calendar_service.connect, user_id, auth_code),
         )
         if not success:
             await update.message.reply_text(
