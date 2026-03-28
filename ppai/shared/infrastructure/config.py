@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     google_client_id: str = ""
     google_client_secret: str = ""
     fernet_encryption_key: str = ""
+    # ER4: Anthropic LLM
+    anthropic_api_key: str = ""
+    llm_daily_cap: int = 50
 
     model_config = {"env_prefix": "", "case_sensitive": False, "env_file": ".env", "extra": "ignore"}
 

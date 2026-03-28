@@ -52,6 +52,13 @@ from ppai.shared.infrastructure.dynamodb_client import get_dynamodb_resource, ta
 from ppai.shared.infrastructure.logging import setup_logging
 from ppai.shared.infrastructure.rate_limiter import InMemoryRateLimiter
 from ppai.shared.infrastructure.user_registry import UserRegistry
+# ER4: LLM intelligence layer
+from ppai.intelligence.application.friction_analyzer import FrictionAnalyzerLLM
+from ppai.intelligence.application.message_composer import MessageComposer
+from ppai.intelligence.application.task_analyzer import TaskAnalyzer
+from ppai.intelligence.application.weekly_insight import WeeklyInsightGenerator
+from ppai.intelligence.infrastructure.anthropic_adapter import AnthropicAdapter
+from ppai.intelligence.infrastructure.llm_rate_limiter import LLMRateLimiter
 
 logger = logging.getLogger(__name__)
 
@@ -92,13 +99,35 @@ def build_app() -> Application:
     # ER2: Category classifier (used by capture + plan)
     category_classifier = CategoryClassifier()
 
-    # UOW-01: Capture (with ER2 category classification)
+    # ER4: LLM intelligence layer (optional — only if API key configured)
+    llm_rate_limiter = LLMRateLimiter(daily_cap=settings.llm_daily_cap)
+    task_analyzer = None
+    message_composer = None
+    friction_analyzer_llm = None
+    weekly_insight_generator = None
+
+    if settings.anthropic_api_key:
+        anthropic_adapter = AnthropicAdapter(
+            api_key=settings.anthropic_api_key,
+            timeout=5.0,
+        )
+        task_analyzer = TaskAnalyzer(adapter=anthropic_adapter, rate_limiter=llm_rate_limiter)
+        message_composer = MessageComposer(adapter=anthropic_adapter, rate_limiter=llm_rate_limiter)
+        friction_analyzer_llm = FrictionAnalyzerLLM(adapter=anthropic_adapter, rate_limiter=llm_rate_limiter)
+        weekly_insight_generator = WeeklyInsightGenerator(adapter=anthropic_adapter, rate_limiter=llm_rate_limiter)
+        logger.info("ER4: LLM intelligence layer enabled (daily cap: %d)", settings.llm_daily_cap)
+    else:
+        logger.info("ER4: LLM intelligence layer disabled (no ANTHROPIC_API_KEY)")
+
+    # UOW-01: Capture (with ER2 category classification + ER4 LLM analyzer)
     capture_service = CaptureService(
         task_repo=task_repo,
         event_repo=event_repo,
         dedup_repo=dedup_repo,
         active_task_limit=settings.active_task_limit,
         category_classifier=category_classifier,
+        task_analyzer=task_analyzer,
+        profile_repo=profile_repo,
     )
 
     # UOW-02: Decision — invalidate Top 3 cache after each capture
@@ -186,6 +215,7 @@ def build_app() -> Application:
         profile_repo=profile_repo,
         cycle_event_repo=cycle_event_repo,
         telegram_port=telegram_push,
+        friction_analyzer_llm=friction_analyzer_llm,
     )
     weekly_reporter = WeeklyReporter(
         task_repo=task_repo,
@@ -194,6 +224,7 @@ def build_app() -> Application:
         profile_repo=profile_repo,
         cycle_event_repo=cycle_event_repo,
         telegram_port=telegram_push,
+        weekly_insight_generator=weekly_insight_generator,
     )
     midday_checkin = MiddayCheckin(
         block_repo=block_repo,
@@ -217,6 +248,7 @@ def build_app() -> Application:
         friction_detector=friction_detector,
         weekly_reporter=weekly_reporter,
         midday_checkin=midday_checkin,
+        message_composer=message_composer,
     )
     nudge_scheduler = NudgeScheduler(
         nudge_service=nudge_service,

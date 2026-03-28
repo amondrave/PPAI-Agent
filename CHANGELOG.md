@@ -11,6 +11,30 @@ Versionado: [Semantic Versioning](https://semver.org/)
 
 ---
 
+## [v1.2.0] — 2026-03-28
+
+### ✨ Added — ER4 LLM como Cerebro del Asistente (HU-R4.1 → HU-R4.4)
+
+- Implementado módulo completo `ppai/intelligence/` con arquitectura hexagonal (domain, application, infrastructure).
+- Implementada **captura inteligente de tareas con LLM** (HU-R4.1): al capturar una tarea, Claude Haiku analiza el texto junto con la ocupación del usuario y devuelve título normalizado, categoría, tiempo estimado y urgencia. Si la API falla o el rate limit se alcanza, el sistema usa automáticamente el clasificador regex como fallback silencioso.
+- Implementados **mensajes con personalidad generados por LLM** (HU-R4.2): los mensajes de inicio de día, cierre y nudges se generan dinámicamente con Claude — Sonnet para matutino/cierre (calidad), Haiku para nudges (costo). Respetan frases prohibidas (`debías`, `ya vas tarde`, etc.) y máximo 150 palabras. Fallback silencioso a templates estáticos si la API falla.
+- Implementado **análisis inteligente de fricción con estrategias personalizadas** (HU-R4.3, DIFERENCIAL): cuando el friction detector identifica una tarea estancada (3+ días), Claude Sonnet recibe el historial completo y genera diagnóstico probable, 3 estrategias concretas al contexto del usuario y 1 micro-acción de máximo 15 minutos. Incluye friction_notes previas para no repetir sugerencias. Fallback a opciones estáticas de HU-R3.3.
+- Implementado **reporte semanal enriquecido con insights de LLM** (HU-R4.4, DIFERENCIAL): Claude Sonnet analiza los datos agregados de la semana y genera qué salió bien, 1 patrón problemático, 1 sugerencia concreta y 1 pregunta reflexiva — todo con datos específicos, no genéricos. Fallback al reporte estático de HU-R3.4.
+- Implementado `AnthropicAdapter` como wrapper del SDK de Anthropic con soporte para respuestas JSON (`ask_json`) y texto libre (`ask_text`), con manejo de errores y timeouts.
+- Implementados prompt templates especializados por caso de uso en `prompt_templates.py` con reglas de tono, frases prohibidas y formato de respuesta.
+- Implementado **rate limiter diario global** (`LLMRateLimiter`): cap configurable (default 50 calls/día) que se resetea a medianoche UTC. Al exceder el cap, todas las llamadas LLM caen a fallback silencioso. Contribuye al presupuesto máximo de $20/mes.
+
+### ⚙️ Infra
+
+- Agregada dependencia `anthropic==0.52.0` a `requirements.txt`.
+- Extendido `Settings` con `anthropic_api_key` y `llm_daily_cap` — la capa LLM se activa solo si la API key está configurada.
+- Pipeline CI/CD actualizado para inyectar `ANTHROPIC_API_KEY` como secret de Terraform al contenedor ECS.
+- Extendidas variables de Terraform en root, módulo ECS y container definition para `anthropic_api_key`.
+- Modelos por caso de uso: Haiku para captura y nudges (~$0.001/día), Sonnet para fricción y weekly (~$0.08/día). Costo estimado total: ~$2.10/mes.
+- Total del proyecto: **493 tests passing**, 0 failures.
+
+---
+
 ## [v1.1.0] — 2026-03-28
 
 ### ✨ Added — ER3 Notificaciones Proactivas Inteligentes (HU-R3.1 → HU-R3.5)
@@ -312,7 +336,8 @@ Versionado: [Semantic Versioning](https://semver.org/)
 
 ---
 
-[Unreleased]: https://github.com/amondrave/PPAI-Agent/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/amondrave/PPAI-Agent/compare/v1.2.0...HEAD
+[v1.2.0]: https://github.com/amondrave/PPAI-Agent/compare/v1.1.0...v1.2.0
 [v1.1.0]: https://github.com/amondrave/PPAI-Agent/compare/v1.0.0...v1.1.0
 [v1.0.0]: https://github.com/amondrave/PPAI-Agent/compare/v0.9.0...v1.0.0
 [v0.9.0]: https://github.com/amondrave/PPAI-Agent/compare/v0.8.0...v0.9.0

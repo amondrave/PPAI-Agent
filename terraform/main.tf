@@ -44,4 +44,5 @@ module "ecs" {
   google_client_id        = var.google_client_id
   google_client_secret    = var.google_client_secret
   fernet_encryption_key   = var.fernet_encryption_key
+  anthropic_api_key       = var.anthropic_api_key
 }

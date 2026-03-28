@@ -31,12 +31,15 @@ class FrictionDetector:
         profile_repo: Optional[ProfileRepository],
         cycle_event_repo: CycleEventRepository,
         telegram_port: TelegramPushPort,
+        friction_analyzer_llm=None,
     ) -> None:
         self._task_repo = task_repo
         self._block_repo = block_repo
         self._profile_repo = profile_repo
         self._cycle_event_repo = cycle_event_repo
         self._telegram = telegram_port
+        # ER4: LLM friction analyzer (optional)
+        self._friction_analyzer_llm = friction_analyzer_llm
 
     def evaluate_friction(
         self,
@@ -61,7 +64,33 @@ class FrictionDetector:
         task = stuck_tasks[0]
         days = getattr(task, "days_in_top3", 0)
 
-        if style == CommunicationStyle.GENTLE:
+        # ER4: Try LLM-based friction analysis for richer diagnosis
+        llm_analysis = None
+        if self._friction_analyzer_llm:
+            try:
+                llm_analysis = self._friction_analyzer_llm.analyze(
+                    task_title=task.normalized_text,
+                    days_in_top3=days,
+                    snooze_count=task.snooze_count,
+                    category=task.category or "",
+                    estimated_minutes=task.estimated_minutes or 30,
+                    occupation=profile.occupation if profile else "",
+                    style=style.value if style else "gentle",
+                    friction_notes=task.friction_notes,
+                )
+            except Exception:
+                logger.warning("er4.friction_llm_failed", extra={"task_id": task.task_id})
+
+        if llm_analysis:
+            # LLM-enriched message
+            strategies_text = "\n".join(f"  {i+1}. {s}" for i, s in enumerate(llm_analysis.strategies))
+            text = (
+                f"*{task.normalized_text}* lleva {days} dias en tu Top 3.\n\n"
+                f"{llm_analysis.diagnosis}\n\n"
+                f"Estrategias:\n{strategies_text}\n\n"
+                f"Micro-accion (15 min): {llm_analysis.micro_action}"
+            )
+        elif style == CommunicationStyle.GENTLE:
             text = (
                 f"Noto que *{task.normalized_text}* lleva {days} dias en tu Top 3.\n"
                 f"A veces las tareas grandes necesitan un enfoque diferente.\n"

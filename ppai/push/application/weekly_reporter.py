@@ -38,6 +38,7 @@ class WeeklyReporter:
         profile_repo: Optional[ProfileRepository],
         cycle_event_repo: CycleEventRepository,
         telegram_port: TelegramPushPort,
+        weekly_insight_generator=None,
     ) -> None:
         self._task_repo = task_repo
         self._block_repo = block_repo
@@ -45,6 +46,8 @@ class WeeklyReporter:
         self._profile_repo = profile_repo
         self._cycle_event_repo = cycle_event_repo
         self._telegram = telegram_port
+        # ER4: LLM weekly insight generator (optional)
+        self._weekly_insight_generator = weekly_insight_generator
 
     def should_send_report(
         self,
@@ -211,23 +214,47 @@ class WeeklyReporter:
             day_name = _WEEKDAY_NAMES.get(least_productive_day, "?")
             parts.append(f"Dia menos productivo: {day_name}")
 
-        # Pattern identification
-        pattern = self._identify_pattern(
-            completions_by_day, blocks_planned_total, blocks_completed_total,
-        )
-        if pattern:
-            parts.append(f"\nPatron detectado: {pattern}")
+        # ER4: Try LLM-enriched insights
+        llm_insight = None
+        if self._weekly_insight_generator and profile:
+            try:
+                best_day_name = _WEEKDAY_NAMES.get(most_productive_day, "?") if most_productive_day is not None else "?"
+                worst_day_name = _WEEKDAY_NAMES.get(least_productive_day, "?") if least_productive_day is not None else "?"
+                llm_insight = self._weekly_insight_generator.generate(
+                    name=name,
+                    occupation=profile.occupation or "",
+                    completed=len(completed_tasks),
+                    snoozed=len(snoozed_tasks),
+                    untouched=len(untouched_tasks),
+                    blocks_completed=blocks_completed_total,
+                    blocks_planned=blocks_planned_total,
+                    best_day=best_day_name,
+                    worst_day=worst_day_name,
+                )
+            except Exception:
+                logger.warning("er4.weekly_insight_llm_failed", extra={"user_id": user_id})
 
-        # Suggestion
-        suggestion = self._generate_suggestion(
-            len(completed_tasks), len(snoozed_tasks), len(untouched_tasks),
-            blocks_planned_total, blocks_completed_total, style,
-        )
-        if suggestion:
-            parts.append(f"\nSugerencia: {suggestion}")
+        if llm_insight:
+            parts.append(f"\nQue salio bien: {llm_insight.what_went_well}")
+            parts.append(f"\nPatron detectado: {llm_insight.problematic_pattern}")
+            parts.append(f"\nSugerencia: {llm_insight.suggestion}")
+            parts.append(f"\n{llm_insight.question}")
+        else:
+            # Fallback: static pattern identification
+            pattern = self._identify_pattern(
+                completions_by_day, blocks_planned_total, blocks_completed_total,
+            )
+            if pattern:
+                parts.append(f"\nPatron detectado: {pattern}")
 
-        # Closing
-        parts.append("\nQuieres cambiar algo para la proxima semana?")
+            suggestion = self._generate_suggestion(
+                len(completed_tasks), len(snoozed_tasks), len(untouched_tasks),
+                blocks_planned_total, blocks_completed_total, style,
+            )
+            if suggestion:
+                parts.append(f"\nSugerencia: {suggestion}")
+
+            parts.append("\nQuieres cambiar algo para la proxima semana?")
 
         return "\n".join(parts)
 
