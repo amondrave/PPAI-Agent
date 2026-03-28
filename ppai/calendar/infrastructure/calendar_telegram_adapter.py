@@ -80,10 +80,14 @@ class CalendarTelegramAdapter:
                 ASK_CODE: [
                     MessageHandler(filters.TEXT & ~filters.COMMAND, self._calendar_code),
                 ],
+                ConversationHandler.TIMEOUT: [
+                    MessageHandler(filters.ALL, self._calendar_timeout),
+                ],
             },
             fallbacks=[CommandHandler("cancel", self._calendar_cancel)],
             per_user=True,
             per_chat=True,
+            conversation_timeout=300,  # 5 minutes to paste code, then release handler
         )
 
     async def _calendar_start(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -128,7 +132,27 @@ class CalendarTelegramAdapter:
             return ConversationHandler.END
 
         user_id = str(update.effective_user.id)
-        auth_code = update.message.text.strip()
+        raw_input = update.message.text.strip()
+
+        # Extract auth code from various formats users might paste:
+        # - Full URL: http://localhost/?code=XXXX&scope=...
+        # - With prefix: code=XXXX
+        # - Just the code: 4/0Aci98E-XXXX
+        auth_code = raw_input
+        if "code=" in auth_code:
+            from urllib.parse import parse_qs, urlparse
+            try:
+                parsed = urlparse(auth_code)
+                if parsed.query:
+                    params = parse_qs(parsed.query)
+                    auth_code = params.get("code", [auth_code])[0]
+                else:
+                    # Handle "code=XXXX" without URL
+                    auth_code = auth_code.split("code=", 1)[1].split("&")[0]
+            except Exception:
+                auth_code = raw_input
+
+        auth_code = auth_code.strip()
 
         if not auth_code:
             await update.message.reply_text(
@@ -170,6 +194,10 @@ class CalendarTelegramAdapter:
         """Cancel the OAuth flow."""
         if update.message:
             await update.message.reply_text("Conexion de calendario cancelada.")
+        return ConversationHandler.END
+
+    async def _calendar_timeout(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+        """Handle conversation timeout — free the handler so capture works again."""
         return ConversationHandler.END
 
     # ------------------------------------------------------------------
